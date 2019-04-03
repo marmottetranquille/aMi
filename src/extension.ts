@@ -54,6 +54,7 @@ export function matlab_callback(
 
 	pyshell.end(function (err) {
 		if (err !== undefined) {
+			console.log(err.name);
 			console.log(err.message);
 			console.log(err.stack);
 		}

@@ -3,7 +3,7 @@
 	"publisher": "aLi",
 	"displayName": "aMi",
 	"description": "alternate Matlab ide",
-	"icon": "images/aMi.png",
+	"icon": "images/aMi128.png",
 	"version": "0.0.0",
 	"engines": {
 		"vscode": "^1.32.0"
