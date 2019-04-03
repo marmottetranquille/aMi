@@ -53,8 +53,10 @@ export function matlab_callback(
 	});
 
 	pyshell.end(function (err) {
-		console.log(err.message);
-		console.log(err.stack);
+		if (err !== undefined) {
+			console.log(err.message);
+			console.log(err.stack);
+		}
 	});
 
 }
