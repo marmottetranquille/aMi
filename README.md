@@ -1,8 +1,8 @@
-# aMi: alternate Matlab ide
+# aMi: alternative Matlab ide
 
 ## What this extension is about
 
-The "alternate Matlab ide" aims at providing a full fledged Matlab user
+The "alternative Matlab ide" aims at providing a full fledged Matlab user
 experience directly from VSCode.
 
 This extension is a work in progress and features will be added as described in

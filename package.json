@@ -2,7 +2,7 @@
 	"name": "ami",
 	"publisher": "aLi",
 	"displayName": "aMi",
-	"description": "alternate Matlab ide",
+	"description": "alternative Matlab ide",
 	"icon": "images/aMi128.png",
 	"version": "0.0.0",
 	"engines": {
