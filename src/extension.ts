@@ -32,7 +32,7 @@ export function matlab_callback(
 	});
 	
 	// Monitor startup
-	const monitor_script_path = context.extensionPath + '/src/matlab_monitor.py';
+	const monitor_script_path = context.extensionPath + '/interfaces/matlab_monitor.py';
 	let pyshell = new PythonShell(monitor_script_path, {mode: 'json'});
 
 	pyshell.stdout.on('data', function (response) {
