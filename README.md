@@ -23,6 +23,18 @@ command window.
 There is no intent to provide compatibility to Windows... not that I want to
 preclude from using Windows, but I just don't own one...
 
+## Usage
+
+### To start Matlab
+
+* Open the command palette using `Ctrl+Shift+P`
+* Type `aMi: Start Matlab` in the command palette
+
+### To stop Matlab
+
+* Open the command palette using `Ctrl+Shift+P`
+* Type `aMi: Start Matlab` in the command palette
+
 ## Features
 
 ### Basics (Version 0)
