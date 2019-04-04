@@ -28,7 +28,8 @@ preclude from using Windows, but I just don't own one...
 ### Basics (Version 0)
 
 There is no intent to provide syntax higlighting or linter in version 0. Other
-extensions can be used for this (Gimly81.matlab for instance).
+extensions can be used for this ([Gimly81.matlab](https://marketplace.visualstudio.com/items?itemName=Gimly81.matlab)
+for instance).
 
 #### Integrated Matlab command window (Version 0.0)
 
