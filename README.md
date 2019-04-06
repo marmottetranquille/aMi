@@ -10,7 +10,7 @@ the Feature section bellow.
 
 This extension is intended for Linux users (so most should work on MacOS).
 
-Current version 0.1.0.
+**Current version 0.1.0**.
 
 ## What this extension is not about
 
@@ -34,7 +34,7 @@ preclude from using Windows, but I just don't own one...
 
 * Use the command window as usual
 * Start scripts from either the file editor or file explorer using right click
-  and then selection `Run Matlab file`
+  and then selecting `Run Matlab file`
 
 ### To stop Matlab
 
@@ -55,7 +55,7 @@ Provide Matlab command window in a terminal.
 
 #### Run script files (Version 0.1)
 
-Run current file in the integrated command window.
+Run .m file from editors or from the file explorer window.
 
 #### Run selected code (Version 0.2)
 
