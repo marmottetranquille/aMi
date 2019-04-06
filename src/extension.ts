@@ -178,6 +178,14 @@ export function activate(context: vscode.ExtensionContext) {
 		'aMi.runScript', () => {
 			
 			const session_tag = context.workspaceState.get('matlab_session_tag');
+			if (session_tag === undefined) {
+				return;
+			}
+			
+			const matlab_terminal = find_matlab_terminal(context);
+			if (matlab_terminal === undefined) {
+				return;
+			}
 
 			let current_editor = vscode.window.activeTextEditor;
 			if (current_editor === undefined) {
@@ -189,16 +197,61 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 
+			let script_path = current_document.fileName;
 			matlab_callback(
 				context,
-				'is_script_in_path', { script_path: current_document.fileName },
+				'is_script_in_path', { script_path: script_path},
 				(argouts: any) => {
 					if (argouts.success === true) {
 						if (argouts.data === true) {
 							vscode.window.showInformationMessage('aMi: Script will be started.');
+							matlab_callback(
+								context,
+								'file_attributes', { file_path: script_path },
+								(argouts: any) => {
+									if (argouts.success === true) {
+										let script_name = argouts.data.file_name;
+										matlab_terminal.sendText(script_name);
+									}
+									else {}
+								},
+								undefined
+							);
 						}
 						else {
 							vscode.window.showWarningMessage('aMi: Script is not in Matlab path.');
+							vscode.window.showQuickPick([
+								'aMi: Add script folder to path',
+								'aMi: Run script in place',
+								'aMi: Cancel run script']).then(
+									(option) => {
+										if (option !== undefined) {
+											if (option === 'aMi: Add script folder to path') {
+												matlab_callback(
+													context,
+													'file_attributes', { file_path: script_path },
+													(argouts: any) => {
+														if (argouts.success === true) {
+															let file_path = argouts.data.file_path;
+															let file_name = argouts.data.file_name;
+															let command = 'addpath ' + file_path + ';';
+															matlab_terminal.sendText(command);
+															command = file_name;
+															matlab_terminal.sendText(command);
+														}
+														else { }
+													},
+													undefined
+												);
+											}
+											if (option === 'aMi: Run script in place') {
+												let command = 'run ' + script_path;
+												matlab_terminal.sendText(command);
+											}
+											if (option === 'aMi: Cancel run script'){}
+										}
+									}
+								);
 						}
 					}
 					else {

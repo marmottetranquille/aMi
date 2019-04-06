@@ -11,10 +11,11 @@ def return_vscode(success=True, message='', data=None):
     return_message = json.dumps({u'success': success,
                                  u'message': message,
                                  u'data': data})
-    print(return_message)
     fid = open('/tmp/jean/log.txt', 'a')
     fid.write('{}: {}'.format(session_tag, return_message))
     fid.close()
+
+    print(return_message)
 
 
 def confirm_start(args):
@@ -111,6 +112,17 @@ def is_script_in_path(args):
                               .format(session_tag))
 
 
+def file_attributes(args):
+    from os.path import realpath, split, splitext
+
+    file_path, file_name = split(args[u'file_path'])
+    file_name, file_ext = splitext(file_name)
+
+    return_vscode(data={u'file_path': file_path,
+                        u'file_name': file_name,
+                        u'file_ext': file_ext})
+
+
 def terminate(args):
     global stop_script
     stop_script = True
@@ -121,11 +133,14 @@ CALLBACK_DICT = {u'confirm_start': confirm_start,
                  u'send_exit': send_exit,
                  u'confirm_stop': confirm_stop,
                  u'is_script_in_path': is_script_in_path,
+                 u'file_attributes': file_attributes,
                  u'terminate': terminate}
 
 stop_script = False
 
-for line in sys.stdin:
+
+def process_line(line):
+    global session_tag
     command = json.loads(line)
     callback = CALLBACK_DICT[command[u'callback']]
     session_tag = command[u'session_tag']
@@ -137,5 +152,10 @@ for line in sys.stdin:
 
     callback(args)
 
-    if stop_script:
-        break
+
+if __name__ == '__main__':
+
+    for line in sys.stdin:
+        process_line(line)
+        if stop_script:
+            break
