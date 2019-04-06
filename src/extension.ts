@@ -158,14 +158,15 @@ export function activate(context: vscode.ExtensionContext) {
 					context,
 					'confirm_stop', {},
 					(argouts: {}) => {
+						let matlab_terminal = find_matlab_terminal(context);
 						if (matlab_terminal !== undefined) {
 							matlab_terminal.dispose();
 						}
 						console.log(argouts);
+						context.workspaceState.update('matlab_terminal_id', undefined);
 					},
 					undefined);
 
-				context.workspaceState.update('matlab_terminal_id', undefined);
 			}
 			else {
 				vscode.window.showWarningMessage(
