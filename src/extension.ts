@@ -236,7 +236,7 @@ function run_script(
 	) {
 		if (args.success === true) {
 			if (args.data === true) {
-				vscode.window.showInformationMessage('aMi: Script will be started.');
+				//vscode.window.showInformationMessage('aMi: Script will be started.');
 				let success_chain = {
 					immediate: send_command_to_terminal,
 					following: undefined
@@ -367,28 +367,32 @@ export function activate(context: vscode.ExtensionContext) {
 				vscode.window.showWarningMessage(
 					'Matlab terminal had already been closed.');
 			}
-		});
+		}
+	);
 	
-	let disp_runScript = vscode.commands.registerCommand(
-		'aMi.runScript', () => {
+	let disp_runEditorScript = vscode.commands.registerCommand(
+		'aMi.runEditorScript', () => {
 			
 			const session_tag = context.workspaceState.get('matlab_session_tag');
 			if (session_tag === undefined) {
+				vscode.window.showErrorMessage('aMi: Please start Matlab first.');
 				return;
 			}
 			
 			const matlab_terminal = find_matlab_terminal(context);
 			if (matlab_terminal === undefined) {
+				vscode.window.showErrorMessage('aMi: Please start Matlab first.');
 				return;
 			}
 
 			let current_editor = vscode.window.activeTextEditor;
 			if (current_editor === undefined) {
+				vscode.window.showErrorMessage('aMi: No text editor currently active (?).');
 				return;
 			}
 			let current_document = current_editor.document;
 			if (current_document.isDirty || current_document.isUntitled) {
-				vscode.window.showWarningMessage('aMi: Please save script first.');
+				vscode.window.showErrorMessage('aMi: Please save script first.');
 				return;
 			}
 
@@ -399,9 +403,41 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
+	let disp_runExplorerScript = vscode.commands.registerCommand(
+		'aMi.runExplorerScript', (uri: vscode.Uri) => {
+			
+			const session_tag = context.workspaceState.get('matlab_session_tag');
+			if (session_tag === undefined) {
+				vscode.window.showErrorMessage('aMi: Please start Matlab first.');
+				return;
+			}
+			
+			const matlab_terminal = find_matlab_terminal(context);
+			if (matlab_terminal === undefined) {
+				vscode.window.showErrorMessage('aMi: Please start Matlab first.');
+				return;
+			}
+
+			let script_file = uri.path;
+			if (script_file === undefined) {
+				vscode.window.showErrorMessage('aMi: No file currently selected (?).');
+				return;
+			}
+
+			if (script_file !== uri.path) {
+				vscode.window.showErrorMessage('aMi: Running remote script execution is not supported.');
+				return;
+			}
+			
+			run_script(context, script_file);
+
+		}
+	);
+
 	context.subscriptions.push(disp_startMatlab);
 	context.subscriptions.push(disp_stopMatlab);
-	context.subscriptions.push(disp_runScript);
+	context.subscriptions.push(disp_runEditorScript);
+	context.subscriptions.push(disp_runExplorerScript);
 }
 
 // this method is called when your extension is deactivated

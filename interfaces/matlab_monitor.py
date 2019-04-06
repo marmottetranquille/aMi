@@ -3,18 +3,29 @@ import matlab.engine
 from time import sleep
 import json
 import sys
+from getpass import getuser
 
 session_tag = ''
 engine = None
+ENABLE_FILE_LOGS = False
+LOG_FILE = '/tmp/{}/aMi.log'.format(getuser())
+
+
+def log(message):
+    global session_tag
+    global LOG_FILE
+    fid = open(LOG_FILE, 'a')
+    fid.write('{}: {}'.format(session_tag, message))
+    fid.close()
 
 
 def return_vscode(success=True, message='', data=None):
     return_message = json.dumps({u'success': success,
                                  u'message': message,
                                  u'data': data})
-    fid = open('/tmp/jean/log.txt', 'a')
-    fid.write('{}: {}'.format(session_tag, return_message))
-    fid.close()
+
+    if ENABLE_FILE_LOGS:
+        log(message)
 
     print(return_message)
 
@@ -170,9 +181,8 @@ def process_line(line):
     session_tag = command[u'session_tag']
     args = command[u'args']
 
-    fid = open('/tmp/jean/log.txt', 'a')
-    fid.write('{}: {}'.format(session_tag, line))
-    fid.close()
+    if ENABLE_FILE_LOGS:
+        log(message)
 
     callback(args)
 

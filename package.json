@@ -35,7 +35,12 @@
 			"category": "aMi"
 		},
 		{
-			"command": "aMi.runScript",
+			"command": "aMi.runEditorScript",
+			"title": "Run Matlab file",
+			"category": "aMi"
+		},
+		{
+			"command": "aMi.runExplorerScript",
 			"title": "Run Matlab file",
 			"category": "aMi"
 		}],
@@ -44,7 +49,12 @@
 				{
 					"when": "resourceExtname == .m",
 					"group": "aMi",
-					"command": "aMi.runScript"
+					"command": "aMi.runEditorScript"
+				}],
+			"explorer/context": [
+				{
+					"group": "aMi",
+					"command": "aMi.runExplorerScript"
 				}]
 		}
 	},
