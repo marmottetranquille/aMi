@@ -10,7 +10,7 @@ the Feature section bellow.
 
 This extension is intended for Linux users (so most should work on MacOS).
 
-Current version 0.0.0.
+Current version 0.1.0.
 
 ## What this extension is not about
 
@@ -29,6 +29,12 @@ preclude from using Windows, but I just don't own one...
 
 * Open the command palette using `Ctrl+Shift+P`
 * Type `aMi: Start Matlab` in the command palette
+
+### To use Matlab
+
+* Use the command window as usual
+* Start scripts from either the file editor or file explorer using right click
+  and then selection `Run Matlab file`
 
 ### To stop Matlab
 
