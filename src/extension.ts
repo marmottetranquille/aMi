@@ -6,6 +6,7 @@ import { cpus, userInfo } from 'os';
 import { isUndefined } from 'util';
 import { Socket } from 'net';
 import { PythonShell } from 'python-shell';
+import { stringify } from 'querystring';
 
 
 export function find_matlab_terminal(context: vscode.ExtensionContext) : vscode.Terminal | undefined {
@@ -24,41 +25,46 @@ export function matlab_callback(
 	context: vscode.ExtensionContext,
 	callback: string,
 	args: {},
-	post_callback: Function | undefined) {
+	success_callback: ((argouts: {}) => void) | undefined,
+	error_callback: ((argouts: {}) => void) | undefined) {
 	
 	console.log({
 		matlab_callback: callback,
-		argins: args, post_callback: post_callback
+		argins: args
 	});
-	
+
+	let argouts = {};
+	let response_received = false;
+	let error_received = false;
+
 	// Monitor startup
 	const monitor_script_path = context.extensionPath + '/interfaces/matlab_monitor.py';
-	let pyshell = new PythonShell(monitor_script_path, {mode: 'json'});
+	let pyshell = new PythonShell(monitor_script_path, { mode: 'json' });
+
+	const session_tag = context.workspaceState.get('matlab_session_tag');
 
 	pyshell.stdout.on('data', function (response) {
-		let argouts = JSON.parse(response);
-		console.log({
-			matlab_callback: callback,
-			argouts: argouts
-		});
-		if (post_callback !== undefined) {
-			post_callback(argouts);
+		argouts = JSON.parse(response);
+		if (success_callback !== undefined) {
+			success_callback(argouts);
 		}
 	});
 
-	const session_tag = context.workspaceState.get('matlab_session_tag');
+	pyshell.stdout.on('error', function (err) {
+		if (error_callback !== undefined) {
+			error_callback(err);
+		}
+	});
+
 	pyshell.send({
 		callback: callback,
+		session_tag: session_tag,
 		args: args
 	});
 
-	pyshell.end(function (err) {
-		if (err !== undefined) {
-			console.log(err.name);
-			console.log(err.message);
-			console.log(err.stack);
-		}
-	});
+	pyshell.end(() => { });
+
+	return argouts;
 
 }
 
@@ -73,7 +79,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
-	let disp_startMatlab = vscode.commands.registerCommand('extension.startMatlab', () => {
+	let disp_startMatlab = vscode.commands.registerCommand('aMi.startMatlab', () => {
 		
 
 		// Check if a session is already running
@@ -129,40 +135,84 @@ export function activate(context: vscode.ExtensionContext) {
 		});
 
 		// Monitor startup
-		matlab_callback(context,
-			'confirm_start', { session_tag: session_tag },
+		matlab_callback(
+			context,
+			'confirm_start', {},
+			undefined,
 			undefined);
 
 	});
 
 	let disp_stopMatlab = vscode.commands.registerCommand(
-		'extension.stopMatlab', () => {
+		'aMi.stopMatlab', () => {
 
 			let matlab_terminal = find_matlab_terminal(context);
 			if (matlab_terminal !== undefined) {
 				const session_tag = context.workspaceState.get('matlab_session_tag');
-				matlab_callback(context,
-					'send_exit', { session_tag: session_tag },
+				matlab_callback(
+					context,
+					'send_exit', {},
+					undefined,
 					undefined);
-				matlab_callback(context,
-					'confirm_stop',
-					{ session_tag: session_tag },
-					function (argouts: {}) {
-						let matlab_terminal = find_matlab_terminal(context);
+				matlab_callback(
+					context,
+					'confirm_stop', {},
+					(argouts: {}) => {
 						if (matlab_terminal !== undefined) {
 							matlab_terminal.dispose();
 						}
-						context.workspaceState.update('matlab_terminal_id', undefined);
-					});
+						console.log(argouts);
+					},
+					undefined);
+
+				context.workspaceState.update('matlab_terminal_id', undefined);
 			}
 			else {
 				vscode.window.showWarningMessage(
 					'Matlab terminal had already been closed.');
 			}
-	});
+		});
+	
+	let disp_runScript = vscode.commands.registerCommand(
+		'aMi.runScript', () => {
+			
+			const session_tag = context.workspaceState.get('matlab_session_tag');
+
+			let current_editor = vscode.window.activeTextEditor;
+			if (current_editor === undefined) {
+				return;
+			}
+			let current_document = current_editor.document;
+			if (current_document.isDirty || current_document.isUntitled) {
+				vscode.window.showWarningMessage('aMi: Please save script first.');
+				return;
+			}
+
+			matlab_callback(
+				context,
+				'is_script_in_path', { script_path: current_document.fileName },
+				(argouts: any) => {
+					if (argouts.success === true) {
+						if (argouts.data === true) {
+							vscode.window.showInformationMessage('aMi: Script will be started.');
+						}
+						else {
+							vscode.window.showWarningMessage('aMi: Script is not in Matlab path.');
+						}
+					}
+					else {
+						vscode.window.showErrorMessage(argouts.message);
+					}
+				},
+				undefined);
+
+
+		}
+	);
 
 	context.subscriptions.push(disp_startMatlab);
 	context.subscriptions.push(disp_stopMatlab);
+	context.subscriptions.push(disp_runScript);
 }
 
 // this method is called when your extension is deactivated

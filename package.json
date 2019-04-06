@@ -20,20 +20,33 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onCommand:extension.startMatlab"
+		"onCommand:aMi.startMatlab"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
 		"commands": [{
-			"command": "extension.startMatlab",
+			"command": "aMi.startMatlab",
 			"title": "Start Matlab",
 			"category": "aMi"
 		},
 		{
-			"command": "extension.stopMatlab",
+			"command": "aMi.stopMatlab",
 			"title": "Stop Matlab",
 			"category": "aMi"
-		}]
+		},
+		{
+			"command": "aMi.runScript",
+			"title": "Run Matlab file",
+			"category": "aMi"
+		}],
+		"menus": {
+			"editor/context": [
+				{
+					"when": "resourceExtname == .m",
+					"group": "aMi",
+					"command": "aMi.runScript"
+				}]
+		}
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
