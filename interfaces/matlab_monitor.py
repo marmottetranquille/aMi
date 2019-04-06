@@ -5,6 +5,7 @@ import json
 import sys
 
 session_tag = ''
+engine = None
 
 
 def return_vscode(success=True, message='', data=None):
@@ -40,8 +41,16 @@ def confirm_start(args):
 
 def connect_to_engine():
     global session_tag
+    global engine
     if session_tag in matlab.engine.find_matlab():
-        engine = matlab.engine.connect_matlab(session_tag)
+        try:
+            if engine is None:
+                engine = matlab.engine.connect_matlab(session_tag)
+        except Exception as error:
+            return_vscode(success=False,
+                          message='Matlab session connection error',
+                          data={"error_message": str(error)})
+            engine = None
     else:
         engine = None
         message = u'Matlab session has been closed or died.'
@@ -92,15 +101,15 @@ def confirm_stop(args):
                       message=message)
 
 
-def is_script_in_path(args):
+def is_file_in_path(args):
     from os.path import realpath, splitext, basename
     engine = connect_to_engine()
 
     if engine is not None:
-        script_real_path = realpath(args[u'script_path'])
-        function_name = splitext(basename(script_real_path))[0]
+        file_real_path = realpath(args[u'file_path'])
+        function_name = splitext(basename(file_real_path))[0]
         response = engine.which(function_name)
-        if str(script_real_path) == response:
+        if str(file_real_path) == response:
             return_vscode(success=True,
                           data=True)
         else:
@@ -112,15 +121,29 @@ def is_script_in_path(args):
                               .format(session_tag))
 
 
-def file_attributes(args):
+def file_attributes(file_path):
     from os.path import realpath, split, splitext
 
-    file_path, file_name = split(args[u'file_path'])
+    file_dir, file_name = split(file_path)
     file_name, file_ext = splitext(file_name)
 
-    return_vscode(data={u'file_path': file_path,
-                        u'file_name': file_name,
-                        u'file_ext': file_ext})
+    return (file_dir, file_name, file_ext)
+
+
+def file_path_to_command(args):
+    (file_dir, file_name, file_ext) = file_attributes(args[u'file_path'])
+
+    return_vscode(data={u'command': file_name})
+
+
+def add_dir_of_file_to_path(args):
+    (file_dir, file_name, file_ext) = file_attributes(args[u'file_path'])
+
+    engine = connect_to_engine()
+
+    engine.addpath(file_dir, nargout=0)
+
+    is_file_in_path(args)
 
 
 def terminate(args):
@@ -132,8 +155,9 @@ def terminate(args):
 CALLBACK_DICT = {u'confirm_start': confirm_start,
                  u'send_exit': send_exit,
                  u'confirm_stop': confirm_stop,
-                 u'is_script_in_path': is_script_in_path,
-                 u'file_attributes': file_attributes,
+                 u'is_file_in_path': is_file_in_path,
+                 u'file_path_to_command': file_path_to_command,
+                 u'add_dir_of_file_to_path': add_dir_of_file_to_path,
                  u'terminate': terminate}
 
 stop_script = False
@@ -156,6 +180,13 @@ def process_line(line):
 if __name__ == '__main__':
 
     for line in sys.stdin:
-        process_line(line)
+        try:
+            process_line(line)
+        except Exception as error:
+            return_vscode(success=False,
+                          message='Matlab session connection error',
+                          data={"error_message": str(error)})
+            break
+
         if stop_script:
             break

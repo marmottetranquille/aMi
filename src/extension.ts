@@ -7,6 +7,33 @@ import { isUndefined } from 'util';
 import { Socket } from 'net';
 import { PythonShell } from 'python-shell';
 import { stringify } from 'querystring';
+import { toUnicode } from 'punycode';
+
+
+type chained_argouts = {
+	success: Boolean,
+	message: string,
+	data: any
+};
+
+type error_callback = ({ }) => void;
+
+type error_callback_chain = {
+	immediate: error_callback | undefined,
+	following: error_callback_chain | undefined
+} | undefined;
+
+type success_callback = (
+	context: vscode.ExtensionContext,
+	args: chained_argouts,
+	success_callback_chain: success_callback_chain | undefined,
+	error_callback_chain: error_callback_chain | undefined
+) => void;
+
+type success_callback_chain = {
+	immediate: success_callback | undefined,
+	following: success_callback_chain | undefined
+} | undefined;
 
 
 export function find_matlab_terminal(context: vscode.ExtensionContext) : vscode.Terminal | undefined {
@@ -25,15 +52,15 @@ export function matlab_callback(
 	context: vscode.ExtensionContext,
 	callback: string,
 	args: {},
-	success_callback: ((argouts: {}) => void) | undefined,
-	error_callback: ((argouts: {}) => void) | undefined) {
+	success_callback_chain: success_callback_chain | undefined,
+	error_callback_chain: error_callback_chain | undefined) {
 	
 	console.log({
 		matlab_callback: callback,
 		argins: args
 	});
 
-	let argouts = {};
+	let argouts:chained_argouts;
 	let response_received = false;
 	let error_received = false;
 
@@ -45,14 +72,25 @@ export function matlab_callback(
 
 	pyshell.stdout.on('data', function (response) {
 		argouts = JSON.parse(response);
-		if (success_callback !== undefined) {
-			success_callback(argouts);
+		console.log(argouts);
+		if (success_callback_chain !== undefined) {
+			if (success_callback_chain.immediate !== undefined) {
+				success_callback_chain.immediate(
+					context,
+					argouts,
+					success_callback_chain.following,
+					error_callback_chain === undefined ?
+						undefined :
+						error_callback_chain.following);	
+			}
 		}
 	});
 
 	pyshell.stdout.on('error', function (err) {
-		if (error_callback !== undefined) {
-			error_callback(err);
+		if (error_callback_chain !== undefined) {
+			if (error_callback_chain.immediate !== undefined) {
+				error_callback_chain.immediate(err);
+			}
 		}
 	});
 
@@ -64,7 +102,180 @@ export function matlab_callback(
 
 	pyshell.end(() => { });
 
-	return argouts;
+}
+
+
+function dispose_terminal(
+	context: vscode.ExtensionContext,
+	args: chained_argouts,
+	success_callback_chain: success_callback_chain,
+	error_callback_chain: error_callback_chain
+) {
+	let matlab_terminal = find_matlab_terminal(context);
+	if (matlab_terminal !== undefined) {
+		matlab_terminal.dispose();
+	}
+	context.workspaceState.update('matlab_terminal_id', undefined);
+}
+
+
+function confirm_stop(
+	context: vscode.ExtensionContext,
+) {
+
+	let success_chain: success_callback_chain = {
+		immediate: dispose_terminal,
+		following: undefined
+	};
+
+	matlab_callback(
+		context,
+		'confirm_stop', {},
+		success_chain,
+		undefined
+		);
+}
+
+
+function send_exit(
+	context: vscode.ExtensionContext,
+) {
+	matlab_callback(
+		context,
+		'send_exit', {},
+		undefined,
+		undefined
+	);
+}
+
+
+function send_command_to_terminal(
+	context: vscode.ExtensionContext,
+	args: chained_argouts,
+	success_callback_chain: success_callback_chain,
+	error_callback_chain: error_callback_chain
+) {
+	let matlab_terminal = find_matlab_terminal(context);
+	const command = args.data.command;
+	if (matlab_terminal !== undefined) {
+		matlab_terminal.sendText(command);
+	}
+	else { }
+}
+
+
+function run_script(
+	context: vscode.ExtensionContext,
+	file_path: string
+) {
+
+	function file_path_to_command(
+		context: vscode.ExtensionContext,
+		args: chained_argouts,
+		success_callback_chain: success_callback_chain,
+		error_callback_chain: error_callback_chain
+	) {
+
+		matlab_callback(
+			context,
+			'file_path_to_command', { file_path: file_path },
+			success_callback_chain,
+			undefined
+		);
+	}
+
+	function add_dir_of_file_to_path(
+		context: vscode.ExtensionContext,
+		success_callback_chain: success_callback_chain,
+		error_callback_chain: error_callback_chain
+	) {
+
+		matlab_callback(
+			context,
+			'add_dir_of_file_to_path', { file_path: file_path },
+			success_callback_chain,
+			undefined
+		);
+	}
+
+	function path_management_switch(option: String) {
+		if (!option !== undefined) {
+			if (option === 'aMi: Add script folder to path') {
+
+				let success_chain: success_callback_chain = {
+					immediate: file_path_to_command,
+					following: {
+						immediate: send_command_to_terminal,
+						following: undefined
+					}
+				};
+
+				add_dir_of_file_to_path(context, success_chain, undefined);
+			}
+			if (option === 'aMi: Run script in place') {
+				let command = 'run ' + file_path;
+				send_command_to_terminal(
+					context,
+					{ success: true, message: '', data: { command: command } },
+					undefined,
+					undefined
+				);
+			}
+			if (option === 'aMi: Cancel run script') {
+				
+			}
+			else { }
+		}
+	}
+
+	function file_in_path_switch(
+		context: vscode.ExtensionContext,
+		args: chained_argouts,
+		success_callback_chain: success_callback_chain,
+		error_callback_chain: error_callback_chain
+	) {
+		if (args.success === true) {
+			if (args.data === true) {
+				vscode.window.showInformationMessage('aMi: Script will be started.');
+				let success_chain = {
+					immediate: send_command_to_terminal,
+					following: undefined
+				};
+				file_path_to_command(
+					context,
+					{ success: true, message: '', data: {} },
+					success_chain,
+					undefined
+				);
+			}
+			else {
+				vscode.window.showWarningMessage('aMi: Script is not in Matlab path.');
+				vscode.window.showQuickPick([
+					'aMi: Add script folder to path',
+					'aMi: Run script in place',
+					'aMi: Cancel run script']).then(
+						(option) => {
+							option !== undefined ?
+								path_management_switch(option) :
+								vscode.window.showErrorMessage(
+									'Something unexpected happened with option selection.');
+						}
+					);
+			}
+		}
+	}
+
+	let success_chain: success_callback_chain = {
+		immediate: file_in_path_switch,
+		following: undefined
+	};
+
+	matlab_callback(
+		context,
+		'is_file_in_path', { file_path: file_path },
+		success_chain,
+		undefined
+	);
 
 }
 
@@ -149,24 +360,8 @@ export function activate(context: vscode.ExtensionContext) {
 			let matlab_terminal = find_matlab_terminal(context);
 			if (matlab_terminal !== undefined) {
 				const session_tag = context.workspaceState.get('matlab_session_tag');
-				matlab_callback(
-					context,
-					'send_exit', {},
-					undefined,
-					undefined);
-				matlab_callback(
-					context,
-					'confirm_stop', {},
-					(argouts: {}) => {
-						let matlab_terminal = find_matlab_terminal(context);
-						if (matlab_terminal !== undefined) {
-							matlab_terminal.dispose();
-						}
-						console.log(argouts);
-						context.workspaceState.update('matlab_terminal_id', undefined);
-					},
-					undefined);
-
+				send_exit(context);
+				confirm_stop(context);
 			}
 			else {
 				vscode.window.showWarningMessage(
@@ -198,68 +393,8 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 
 			let script_path = current_document.fileName;
-			matlab_callback(
-				context,
-				'is_script_in_path', { script_path: script_path},
-				(argouts: any) => {
-					if (argouts.success === true) {
-						if (argouts.data === true) {
-							vscode.window.showInformationMessage('aMi: Script will be started.');
-							matlab_callback(
-								context,
-								'file_attributes', { file_path: script_path },
-								(argouts: any) => {
-									if (argouts.success === true) {
-										let script_name = argouts.data.file_name;
-										matlab_terminal.sendText(script_name);
-									}
-									else {}
-								},
-								undefined
-							);
-						}
-						else {
-							vscode.window.showWarningMessage('aMi: Script is not in Matlab path.');
-							vscode.window.showQuickPick([
-								'aMi: Add script folder to path',
-								'aMi: Run script in place',
-								'aMi: Cancel run script']).then(
-									(option) => {
-										if (option !== undefined) {
-											if (option === 'aMi: Add script folder to path') {
-												matlab_callback(
-													context,
-													'file_attributes', { file_path: script_path },
-													(argouts: any) => {
-														if (argouts.success === true) {
-															let file_path = argouts.data.file_path;
-															let file_name = argouts.data.file_name;
-															let command = 'addpath ' + file_path + ';';
-															matlab_terminal.sendText(command);
-															command = file_name;
-															matlab_terminal.sendText(command);
-														}
-														else { }
-													},
-													undefined
-												);
-											}
-											if (option === 'aMi: Run script in place') {
-												let command = 'run ' + script_path;
-												matlab_terminal.sendText(command);
-											}
-											if (option === 'aMi: Cancel run script'){}
-										}
-									}
-								);
-						}
-					}
-					else {
-						vscode.window.showErrorMessage(argouts.message);
-					}
-				},
-				undefined);
-
+			
+			run_script(context, script_path);
 
 		}
 	);
