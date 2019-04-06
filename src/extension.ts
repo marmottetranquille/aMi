@@ -279,6 +279,7 @@ function run_script(
 
 }
 
+
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -434,10 +435,49 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
+	let disp_runEditorSelection = vscode.commands.registerCommand(
+		'aMi.runEditorSelection', () => {
+			
+			const session_tag = context.workspaceState.get('matlab_session_tag');
+			if (session_tag === undefined) {
+				vscode.window.showErrorMessage('aMi: Please start Matlab first.');
+				return;
+			}
+			
+			const matlab_terminal = find_matlab_terminal(context);
+			if (matlab_terminal === undefined) {
+				vscode.window.showErrorMessage('aMi: Please start Matlab first.');
+				return;
+			}
+
+			let current_editor = vscode.window.activeTextEditor;
+			if (current_editor === undefined) {
+				vscode.window.showErrorMessage('aMi: No text editor currently active (?).');
+				return;
+			}
+
+			let current_selection = current_editor.selection;
+			if (current_selection === undefined) {
+				vscode.window.showErrorMessage('aMi: No text is currently selected (?).');
+			}
+
+			let selected_code = current_editor.document.getText(current_selection);
+
+			send_command_to_terminal(
+				context,
+				{ success: true, message: '', data:{command: selected_code}},
+				undefined,
+				undefined
+			);
+
+		}
+	);
+
 	context.subscriptions.push(disp_startMatlab);
 	context.subscriptions.push(disp_stopMatlab);
 	context.subscriptions.push(disp_runEditorScript);
 	context.subscriptions.push(disp_runExplorerScript);
+	context.subscriptions.push(disp_runEditorSelection);
 }
 
 // this method is called when your extension is deactivated

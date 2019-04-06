@@ -4,7 +4,7 @@
 	"displayName": "aMi",
 	"description": "alternative Matlab ide",
 	"icon": "images/aMi128.png",
-	"version": "0.1.1",
+	"version": "0.2.0",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/marmottetranquille/aMi.git"
@@ -43,6 +43,11 @@
 			"command": "aMi.runExplorerScript",
 			"title": "Run Matlab file",
 			"category": "aMi"
+		},
+		{
+			"command": "aMi.runEditorSelection",
+			"title": "Run selection in Matlab command window",
+			"category": "aMi"
 		}],
 		"menus": {
 			"editor/context": [
@@ -50,13 +55,20 @@
 					"when": "resourceExtname == .m",
 					"group": "aMi",
 					"command": "aMi.runEditorScript"
-				}],
+				},
+				{
+					"when": "resourceExtname == .m && editorHasSelection",
+					"group": "aMi",
+					"command": "aMi.runEditorSelection"
+				}
+			],
 			"explorer/context": [
 				{
 					"when": "resourceExtname == .m",
 					"group": "aMi",
 					"command": "aMi.runExplorerScript"
-				}]
+				}
+			]
 		}
 	},
 	"scripts": {
