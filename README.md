@@ -10,7 +10,7 @@ the Feature section bellow.
 
 This extension is intended for Linux users (so most should work on MacOS).
 
-**Current version 0.1.0**.
+**Current version 0.1.1**.
 
 ## What this extension is not about
 
