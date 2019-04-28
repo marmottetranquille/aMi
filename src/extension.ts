@@ -8,6 +8,8 @@ import { Socket } from 'net';
 import { PythonShell } from 'python-shell';
 import { stringify } from 'querystring';
 import { toUnicode } from 'punycode';
+import * as Net from 'net';
+import { MatlabDebugSession } from './matlabDebug';
 
 
 type chained_argouts = {
@@ -308,7 +310,7 @@ export function activate(context: vscode.ExtensionContext) {
 			'Matlab',
 			undefined,
 			undefined);
-		matlab_terminal.show(false);
+		matlab_terminal.hide();
 
 		// Prepare tag for finding the Matlab shared session
 		const current_date = new Date();
@@ -323,9 +325,15 @@ export function activate(context: vscode.ExtensionContext) {
 		session_tag = username + session_tag;
 
 		// Start Matlab in shared mode
-		let matlab_command = 'matlab -nodesktop';
+		let log_dir = '/tmp/' + username + '/matlab' + session_tag;
+		matlab_terminal.sendText('mkdir -p ' + log_dir);
+		matlab_terminal.sendText('chmod og-rwx ' + log_dir);
+		let matlab_command = 'tee -i ' + log_dir + '/input.log';
+		matlab_command = matlab_command + ' | matlab -nodesktop';
 		matlab_command = matlab_command + ' -r \"matlab.engine.shareEngine(\'';
 		matlab_command = matlab_command + session_tag + '\')\"';
+		matlab_terminal.sendText('reset');
+		matlab_terminal.show(false);
 		matlab_terminal.sendText(matlab_command, true);
 		vscode.window.showInformationMessage('Matlab is starting...');
 
@@ -334,6 +342,7 @@ export function activate(context: vscode.ExtensionContext) {
 		context.workspaceState.update(
 			'matlab_terminal_id',
 			matlab_terminal.processId);
+		context.workspaceState.update('input_log_file', log_dir + '/input.log');
 
 		// Find where matlab is installed
 		const { exec } = require('child_process');
@@ -473,13 +482,102 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
+	const factory = new MatlabDebugDescriptorFactory();
+	context.subscriptions.push(
+		vscode.debug.registerDebugAdapterDescriptorFactory(
+			'matlab',
+			factory
+		)
+	);
+
+	let startDebugAdaptor = vscode.commands.registerCommand('aMi.startDebugAdaptor', () => {
+
+		//vscode.debug.onDidChangeBreakpoints(logNewBreakPoint);
+
+		const matlabConfiguration = new MatlabConfiguration(
+			context.workspaceState.get('matlab_session_tag'),
+			context.workspaceState.get('input_log_file'),
+			context.extensionPath);
+
+		vscode.debug.startDebugging(undefined, matlabConfiguration);
+		
+
+	});
+
 	context.subscriptions.push(disp_startMatlab);
 	context.subscriptions.push(disp_stopMatlab);
 	context.subscriptions.push(disp_runEditorScript);
 	context.subscriptions.push(disp_runExplorerScript);
 	context.subscriptions.push(disp_runEditorSelection);
+	context.subscriptions.push(factory);
+	context.subscriptions.push(startDebugAdaptor);
 }
 
 // this method is called when your extension is deactivated
 export function deactivate() {
+}
+
+export class MatlabConfiguration implements vscode.DebugConfiguration {
+
+    type: string;
+    name: string;
+    request: string;
+	extensionFolder: string;
+	sessionTag: string | undefined;
+	inputLogFile: string | undefined;
+
+	public constructor(
+		sessionTag: string | undefined,
+		inputLogFile: string | undefined,
+		extensionFolder: string
+	) {
+        this.type = 'matlab';
+        this.name = 'Start Matlab';
+        this.request = 'launch';
+		this.extensionFolder = extensionFolder;
+		if (sessionTag !== undefined) {
+			this.sessionTag = sessionTag;
+		}
+		else {
+			console.error('Matlab sessionTag undefined; did you start Matlab?');
+		}
+		if (inputLogFile !== undefined) {
+			this.inputLogFile = inputLogFile;
+		}
+		else {
+			console.error('Input log file is undefined.');
+		}
+    }
+}
+
+class MatlabDebugDescriptorFactory implements
+	vscode.DebugAdapterDescriptorFactory {
+	
+	private server?: Net.Server;
+	
+	createDebugAdapterDescriptor(
+		session: vscode.DebugSession,
+		executable: vscode.DebugAdapterExecutable | undefined
+	): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
+
+		if (!this.server) {
+			this.server = Net.createServer(
+				socket => {
+					const session = new MatlabDebugSession();
+					session.setRunAsServer(true);
+					session.start(<NodeJS.ReadableStream>socket, socket);
+				}
+			).listen(0);
+		}
+
+		let addressInfo = this.server.address() as Net.AddressInfo;
+
+		return new vscode.DebugAdapterServer(addressInfo.port);
+	}
+
+	dispose() {
+		if (this.server) {
+			this.server.close();
+		}
+	}
 }

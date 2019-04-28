@@ -48,6 +48,11 @@
 			"command": "aMi.runEditorSelection",
 			"title": "Run selection in Matlab command window",
 			"category": "aMi"
+		},
+		{
+			"command": "aMi.startDebugAdaptor",
+			"title": "Start debug adaptor",
+			"category": "aMi"
 		}],
 		"menus": {
 			"editor/context": [
@@ -69,7 +74,49 @@
 					"command": "aMi.runExplorerScript"
 				}
 			]
-		}
+		},
+		"languages": [{
+			"id": "matlab",
+			"aliases": ["MATLAB", "Matlab"],
+			"extensions": [
+				".m"
+			]
+		}],
+		"breakpoints": [
+			{
+				"language": "matlab"
+			}
+		],
+		"debuggers": [
+			{
+				"type": "matlab",
+				"label": "matlab",
+				"languages": ["matlab"],
+				"program": "./out/debugAdapter.js",
+				"runtime": "node",
+				"configurationAttributes": {
+					"launch": {
+						"required": [
+							"adaptorPath"
+						],
+						"properties": {
+							"extensionFolder": {
+								"type": "string",
+								"description": "Absolute path to the extension folder (dynamically resolved)"
+							}
+						}
+
+					}
+				},
+				"initialConfigurations": [
+					{
+						"type": "matlab",
+						"request": "launch",
+						"name": "Start Matlab debug adaptor"
+					}
+				]
+			}
+		]
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
