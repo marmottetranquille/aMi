@@ -54,48 +54,58 @@ async def input_event_emitter():
     input_event_log = open('/tmp/aMiInputEvent.log', 'w+')
     input_event_log.write('TEST\n')
     input_event_log.flush()
-    counter = 0
-    input_event_log.write(str(execute_input_event_emitter) + str(counter) +
-                          '\n')
-    input_event_log.flush()
+    old_size = 0
+
     while True:
-        counter += 1
         if execute_input_event_emitter:
-            input_line = command_input_log_file.readline()
-            input_event_log.write('in ' +
-                                  str(execute_input_event_emitter) +
-                                  str(counter) +
-                                  command_input_log_file.name + ' ' +
-                                  '"' + str(input_line) + '"'
-                                  '\n')
+            if old_size == 0:
+                input_event_log.write('checking initial size\n')
+                input_event_log.write(str(command_input_log_file) + '\n')
+                input_event_log.flush()
+                old_size = os.stat(command_input_log_file).st_size
+                command_input_log = open(str(command_input_log_file), 'r')
+
+            new_size = os.stat(command_input_log_file).st_size
+
+            input_event_log.write(str(execute_input_event_emitter) + ' ' +
+                                  str(old_size) + ' ' + str(new_size) + '\n')
             input_event_log.flush()
 
-            if input_line and '\n' in input_line:
-                input_event_log.write(input_line)
+            input_event_detected = False
+
+            if old_size < new_size:
+                command_input_log.seek(old_size, 0)
+                new_line = command_input_log.readline()
+                input_event_log.write(new_line + ' ' + str('\n' in new_line) +
+                                      '\n')
                 input_event_log.flush()
+                if new_line and '\n' in new_line:
+                    input_event_detected = True
+                    old_size = new_size
+                else:
+                    command_input_log.seek(old_size, 0)
+
+            if input_event_detected:
                 engine.eval("disp('pong');",
                             nargout=0,
                             stdout=m_stdout,
                             stderr=m_stderr)
 
-                command_input_log_file.seek(0, 2)
-
                 return_vscode(
                     message_type='response',
-                    command='input_event_emmitter',
+                    command='input_event_emitter',
                     message='',
                     data={}
                 )
 
-        else:
-            pass
-            # input_event_log.write('out ' +
-            #                       str(execute_input_event_emitter) +
-            #                       str(counter) +
-            #                       '\n')
-            # input_event_log.flush()
+                old_size = os.stat(command_input_log_file).st_size
+                command_input_log.seek(old_size, 0)
+            else:
+                await asyncio.sleep(0.25)
 
-        await asyncio.sleep(0.25)
+        else:
+
+            await asyncio.sleep(0.25)
 
 
 def connect(args):
@@ -104,7 +114,8 @@ def connect(args):
     global command_input_log_file
     global execute_input_event_emitter
     session_tag = str(args[u'session_tag'])
-    command_input_log_file = open(str(args[u'input_log_file']), 'r')
+    # command_input_log_file = open(str(args[u'input_log_file']), 'r')
+    command_input_log_file = str(args[u'input_log_file'])
     try:
         engine = matlab.engine.connect_matlab(session_tag)
         return_vscode(message_type='response',
@@ -119,7 +130,6 @@ def connect(args):
                       message=str(error),
                       data={'args': args})
 
-    command_input_log_file.seek(0, 2)
     execute_input_event_emitter = True
 
 

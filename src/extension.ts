@@ -50,10 +50,29 @@ export function createSessionTag(context: vscode.ExtensionContext) {
 	const username = userInfo().username;
 	let session_tag = `${year}${month}${day}${hour}${minute}${second}`;
 	session_tag = username + session_tag;
+
+	let log_dir = '/tmp/' + username + '/matlab' + session_tag;
 	
 	context.workspaceState.update('matlab_session_tag', session_tag);
+	context.workspaceState.update('log_dir', log_dir);
+	context.workspaceState.update('input_log_file', log_dir + '/input.log');
 }
 
+
+export function getSessionTag(context: vscode.ExtensionContext): any {
+	let sessionTag = context.workspaceState.get('matlab_session_tag');
+	return sessionTag;
+}
+
+export function getLogDir(context: vscode.ExtensionContext): any {
+	let logDir = context.workspaceState.get('log_dir');
+	return logDir;
+}
+
+export function getInputLogFile(context: vscode.ExtensionContext): any {
+	let inputLogFile = context.workspaceState.get('input_log_file');
+	return inputLogFile;
+}
 
 export function find_matlab_terminal(context: vscode.ExtensionContext) : vscode.Terminal | undefined {
 	let matlab_terminal_id = context.workspaceState.get('matlab_terminal_id');
@@ -342,27 +361,25 @@ export function activate(context: vscode.ExtensionContext) {
 		const username = userInfo().username;
 		let session_tag = `${year}${month}${day}${hour}${minute}${second}`;
 		session_tag = username + session_tag;*/
-		let session_tag = context.workspaceState.get('matlab_session_tag');
+		let session_tag = getSessionTag(context);
+		let log_dir = getLogDir(context);
+		let log_file = getInputLogFile(context);
 
 		// Start Matlab in shared mode
-		const username = userInfo().username;
-		let log_dir = '/tmp/' + username + '/matlab' + session_tag;
 		matlab_terminal.sendText('mkdir -p ' + log_dir);
 		matlab_terminal.sendText('chmod og-rwx ' + log_dir);
 		let matlab_command = 'matlab -nodesktop ';
 		matlab_command = matlab_command + ' -r \"matlab.engine.shareEngine(\'';
 		matlab_command = matlab_command + session_tag + '\')\"';
-		matlab_command = matlab_command + ' | tee -i ' + log_dir + '/input.log';
+		matlab_command = matlab_command + ' | tee -i ' + log_file;
 		matlab_terminal.sendText('reset');
 		matlab_terminal.show(false);
 		matlab_terminal.sendText(matlab_command, true);
-		vscode.window.showInformationMessage('Matlab is starting...');
 
 		// Register Matlab command window terminal
 		context.workspaceState.update(
 			'matlab_terminal_id',
 			matlab_terminal.processId);
-		context.workspaceState.update('input_log_file', log_dir + '/input.log');
 
 		// Find where matlab is installed
 		const { exec } = require('child_process');
@@ -372,7 +389,6 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 			let matlab_root = stdout.slice(0, -'/bin/matlab'.length - 1);
-			vscode.window.showInformationMessage('matlab found in ' + matlab_root);
 		});
 
 		// Monitor startup
@@ -389,7 +405,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 			let matlab_terminal = find_matlab_terminal(context);
 			if (matlab_terminal !== undefined) {
-				const session_tag = context.workspaceState.get('matlab_session_tag');
+				const session_tag = getSessionTag(context);
 				send_exit(context);
 				confirm_stop(context);
 			}
@@ -403,7 +419,7 @@ export function activate(context: vscode.ExtensionContext) {
 	let disp_runEditorScript = vscode.commands.registerCommand(
 		'aMi.runEditorScript', () => {
 			
-			const session_tag = context.workspaceState.get('matlab_session_tag');
+			const session_tag = getSessionTag(context);
 			if (session_tag === undefined) {
 				vscode.window.showErrorMessage('aMi: Please start Matlab first.');
 				return;
@@ -436,7 +452,7 @@ export function activate(context: vscode.ExtensionContext) {
 	let disp_runExplorerScript = vscode.commands.registerCommand(
 		'aMi.runExplorerScript', (uri: vscode.Uri) => {
 			
-			const session_tag = context.workspaceState.get('matlab_session_tag');
+			const session_tag = getSessionTag(context);
 			if (session_tag === undefined) {
 				vscode.window.showErrorMessage('aMi: Please start Matlab first.');
 				return;
@@ -467,7 +483,7 @@ export function activate(context: vscode.ExtensionContext) {
 	let disp_runEditorSelection = vscode.commands.registerCommand(
 		'aMi.runEditorSelection', () => {
 			
-			const session_tag = context.workspaceState.get('matlab_session_tag');
+			const session_tag = getSessionTag(context);
 			if (session_tag === undefined) {
 				vscode.window.showErrorMessage('aMi: Please start Matlab first.');
 				return;
@@ -503,9 +519,9 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	const factory = new MatlabDebugDescriptorFactory(
-		context.workspaceState.get('matlab_session_tag'),
+		getSessionTag(context),
 		context.extensionPath,
-		context.workspaceState.get('input_log_file')
+		getInputLogFile(context)
 	);
 	context.subscriptions.push(
 		vscode.debug.registerDebugAdapterDescriptorFactory(
@@ -519,8 +535,8 @@ export function activate(context: vscode.ExtensionContext) {
 		//vscode.debug.onDidChangeBreakpoints(logNewBreakPoint);
 
 		const matlabConfiguration = new MatlabConfiguration(
-			context.workspaceState.get('matlab_session_tag'),
-			context.workspaceState.get('input_log_file'),
+			getSessionTag(context),
+			getInputLogFile(context),
 			context.extensionPath);
 
 		vscode.debug.startDebugging(undefined, matlabConfiguration);

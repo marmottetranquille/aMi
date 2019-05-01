@@ -10,7 +10,7 @@ type command =
     'wait_startup' |
     'update_breakpoints' |
     'get_stack_frames' |
-    'input_event_emmiter' |
+    'input_event_emitter' |
     'ping';
 
 type adaptorResponse = {
@@ -149,7 +149,7 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
                             response.data
                         );
                         break;
-                    case 'input_event_emmiter':
+                    case 'input_event_emitter':
                         me.processInputEventResponse();
                         break;
                 }
