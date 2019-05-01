@@ -60,28 +60,6 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
         this.connectMatlab(sessionTag, inputLogFile);
     }
 
-    public start(
-        sessionTag: string,
-        inputLogFile: string,
-        extensionFolder: string,
-        debugAdaptorResponse: DebugProtocol.LaunchResponse
-    ) {
-        /*
-        this._pyshell = new pyshell.PythonShell(
-            extensionFolder + '/interfaces/matlab_adaptor.py',
-            { mode: 'json' },
-        );
-        this._pyshell.on(
-            'message',
-            (response) => {
-
-                this.processResponse(response, this);
-            }
-        );
-        this.connectMatlab(sessionTag, inputLogFile, debugAdaptorResponse);
-        */
-    }
-
     public processSetBreakpointsResponse(
         success: boolean,
         data: {

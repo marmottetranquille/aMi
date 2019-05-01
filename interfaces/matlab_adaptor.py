@@ -40,20 +40,39 @@ def return_vscode(message_type=None,
 
 engine = None
 command_input_log_file = None
-execute_input_event_emitter = True
+execute_input_event_emitter = False
 
 
 async def input_event_emitter():
     global command_input_log_file
     global engine
+    global execute_input_event_emitter
     import time
     from io import StringIO
     m_stdout = StringIO()
     m_stderr = StringIO()
+    input_event_log = open('/tmp/aMiInputEvent.log', 'w+')
+    input_event_log.write('TEST\n')
+    input_event_log.flush()
+    counter = 0
+    input_event_log.write(str(execute_input_event_emitter) + str(counter) +
+                          '\n')
+    input_event_log.flush()
     while True:
+        counter += 1
         if execute_input_event_emitter:
             input_line = command_input_log_file.readline()
+            input_event_log.write('in ' +
+                                  str(execute_input_event_emitter) +
+                                  str(counter) +
+                                  command_input_log_file.name + ' ' +
+                                  '"' + str(input_line) + '"'
+                                  '\n')
+            input_event_log.flush()
+
             if input_line and '\n' in input_line:
+                input_event_log.write(input_line)
+                input_event_log.flush()
                 engine.eval("disp('pong');",
                             nargout=0,
                             stdout=m_stdout,
@@ -68,7 +87,15 @@ async def input_event_emitter():
                     data={}
                 )
 
-        await asyncio.sleep(0.01)
+        else:
+            pass
+            # input_event_log.write('out ' +
+            #                       str(execute_input_event_emitter) +
+            #                       str(counter) +
+            #                       '\n')
+            # input_event_log.flush()
+
+        await asyncio.sleep(0.25)
 
 
 def connect(args):

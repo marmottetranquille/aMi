@@ -56,12 +56,6 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
             (response) => {
                 console.log(response);
                 this.sendResponse(response);
-                /*this.sendEvent(
-                    new DebugAdapter.StoppedEvent(
-                        'postSetBreakpoints',
-                        0
-                    )
-                );*/
             }
         );
 
@@ -80,7 +74,6 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
 
         console.log(response);
         this.sendResponse(response);
-        //this.sendEvent(new DebugAdapter.InitializedEvent());
     }
 
     protected async launchRequest(
@@ -89,12 +82,6 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
     ) {
         console.log(response);
         this.sendResponse(response);
-        /*this.sendEvent(
-            new DebugAdapter.StoppedEvent(
-                'Main command prompt',
-                0
-            )
-        );*/
     }
 
     protected async setBreakPointsRequest(
@@ -128,6 +115,13 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         response.body = response.body || {};
         response.success = true;
         this.sendResponse(response);
+        console.log('DEBUG ADAPTOR CONFIGURATION DONE');
+        this.sendEvent(
+            new DebugAdapter.StoppedEvent(
+                '',
+                0
+            )
+        );
     }
 
     protected async threadsRequest(
