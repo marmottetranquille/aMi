@@ -9,6 +9,8 @@ type command =
     'connect' |
     'wait_startup' |
     'update_breakpoints' |
+    'get_stack_frames' |
+    'input_event_emmiter' |
     'ping';
 
 type adaptorResponse = {
@@ -25,20 +27,25 @@ type adaptorCommand = {
 };
 
 export type MatlabBreakpoint = {
-    filepath: string,
     line: number,
     valid: boolean
+};
+
+export type MatlabBreakpoints = {
+    file_path: string,
+    breakpoints: MatlabBreakpoint[]
 };
 
 export class MatlabRuntimeAdaptor extends events.EventEmitter  {
 
     private _pyshell?: pyshell.PythonShell;
 
-    public start(
+    constructor(
         sessionTag: string,
-        inputLogFile: string,
-        extensionFolder: string
+        extensionFolder: string,
+        inputLogFile: string
     ) {
+        super();
         this._pyshell = new pyshell.PythonShell(
             extensionFolder + '/interfaces/matlab_adaptor.py',
             { mode: 'json' },
@@ -46,20 +53,47 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
         this._pyshell.on(
             'message',
             (response) => {
+
                 this.processResponse(response, this);
             }
         );
         this.connectMatlab(sessionTag, inputLogFile);
     }
 
+    public start(
+        sessionTag: string,
+        inputLogFile: string,
+        extensionFolder: string,
+        debugAdaptorResponse: DebugProtocol.LaunchResponse
+    ) {
+        /*
+        this._pyshell = new pyshell.PythonShell(
+            extensionFolder + '/interfaces/matlab_adaptor.py',
+            { mode: 'json' },
+        );
+        this._pyshell.on(
+            'message',
+            (response) => {
+
+                this.processResponse(response, this);
+            }
+        );
+        this.connectMatlab(sessionTag, inputLogFile, debugAdaptorResponse);
+        */
+    }
+
     public processSetBreakpointsResponse(
         success: boolean,
-        matlabBreakpoints: MatlabBreakpoint[]
+        data: {
+            breakpoints: MatlabBreakpoints,
+            response: DebugProtocol.SetBreakpointsResponse
+        }
     ) {
-        let response = {} as DebugProtocol.SetBreakpointsResponse;
+        let response = data.response;
+        let matlabBreakpoints = data.breakpoints;
         let breakpoints: DebugProtocol.Breakpoint[] = Array();
 
-        matlabBreakpoints.forEach(
+        matlabBreakpoints.breakpoints.forEach(
             (matlabBreakpoint) => {
                 breakpoints.push(
                     {
@@ -70,23 +104,21 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
         );
 
         response.success = true;
+        response.body = response.body || {};
         response.body.breakpoints = breakpoints;
 
         this.emit('setBreakpointsDone', response);
     }
 
-    public processWaitStartupResponse(success: boolean) {
-        let response = {} as DebugProtocol.LaunchResponse;
-        if (!success) {
-            response.success = false;
-        }
-        else {
-            response.success = true;
-        }
-        this.emit('startupDone', response);
+    public processWaitStartupResponse(
+        success: boolean
+    ) {
+        this.emit('startupDone', success);
     }
 
-    public processConnectResponse(success: boolean) {
+    public processConnectResponse(
+        success: boolean
+    ) {
         if (this._pyshell === undefined) {
             console.error('Python shell has not been started yet.');
         }
@@ -105,6 +137,10 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
         }
     }
 
+    public processInputEventResponse() {
+        this.emit('inputEvent');
+    }
+
     private processResponse(
         response: adaptorResponse,
         me: MatlabRuntimeAdaptor
@@ -120,10 +156,14 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
                 console.log(response);
                 switch (response.command) {
                     case 'connect':
-                        me.processConnectResponse(response.success);
+                        me.processConnectResponse(
+                            response.success
+                        );
                         break;
                     case 'wait_startup':
-                        me.processWaitStartupResponse(response.success);
+                        me.processWaitStartupResponse(
+                            response.success
+                        );
                         break;
                     case 'update_breakpoints':
                         me.processSetBreakpointsResponse(
@@ -131,13 +171,16 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
                             response.data
                         );
                         break;
+                    case 'input_event_emmiter':
+                        me.processInputEventResponse();
+                        break;
                 }
         }
     }
 
     public connectMatlab(
         sessionTag: string,
-        inputLogFile: string
+        inputLogFile: string,
     ) {
 
         if (this._pyshell !== undefined) {
@@ -155,15 +198,22 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
 
     public updateBreakPoints(
         sourceFile: string,
-        breakpoints: DebugProtocol.SourceBreakpoint[]
+        breakpoints: DebugProtocol.SourceBreakpoint[],
+        response: DebugProtocol.SetBreakpointsResponse
     ) {
-        let matlabBreakPoints: MatlabBreakpoint[] = new Array();
+        let matlabBreakPoints: MatlabBreakpoints;
+        matlabBreakPoints = {
+            file_path: sourceFile,
+            breakpoints: new Array<MatlabBreakpoint>()
+        };
+
+        console.log(sourceFile);
+        console.log(breakpoints);
 
         breakpoints.forEach(
             (breakpoint) => {
-                matlabBreakPoints.push(
+                matlabBreakPoints.breakpoints.push(
                     {
-                        filepath: sourceFile,
                         line: breakpoint.line,
                         valid: false
                     }
@@ -176,10 +226,22 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
                 {
                     command: 'update_breakpoints',
                     args: {
-                        breakpoints: matlabBreakPoints
+                        breakpoints: matlabBreakPoints,
+                        response: response
                     }
                 } as adaptorCommand
             );
+        }
+    }
+
+    public getStackTrace(
+        response: DebugProtocol.StackTraceResponse
+    ) {
+        if (this._pyshell !== undefined) {
+            this._pyshell.send({
+                command: 'get_stack_frames',
+                args: response
+            } as adaptorCommand);
         }
     }
 }

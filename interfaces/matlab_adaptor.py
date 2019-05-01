@@ -45,15 +45,26 @@ execute_input_event_emitter = True
 
 async def input_event_emitter():
     global command_input_log_file
+    global engine
     import time
+    from io import StringIO
+    m_stdout = StringIO()
+    m_stderr = StringIO()
     while True:
         if execute_input_event_emitter:
             input_line = command_input_log_file.readline()
-            if input_line:
+            if input_line and '\n' in input_line:
+                engine.eval("disp('pong');",
+                            nargout=0,
+                            stdout=m_stdout,
+                            stderr=m_stderr)
+
+                command_input_log_file.seek(0, 2)
+
                 return_vscode(
-                    message_type='info',
-                    command='input_event_emitter',
-                    message=input_line,
+                    message_type='response',
+                    command='input_event_emmitter',
+                    message='',
                     data={}
                 )
 
@@ -75,7 +86,7 @@ def connect(args):
                       message='Matlab engine succesfully connected.',
                       data={})
     except MatlabEngineError as error:
-        return_vscode(message_type='response',
+        return_vscode(message_type='error',
                       command='connect',
                       success=False,
                       message=str(error),
@@ -92,6 +103,13 @@ def wait_startup(args):
     m_stderr = StringIO()
     matlab_adaptor_lib_path = os.path.dirname(__file__) + '/matlab'
     try:
+        return_vscode(
+            message_type='info',
+            command='wait_startup',
+            message='',
+            success=True,
+            data={'matlab_adaptor_lib_path': matlab_adaptor_lib_path}
+        )
         engine.eval("addpath('{}');".format(matlab_adaptor_lib_path),
                     nargout=0,
                     stdout=m_stdout,
@@ -112,19 +130,43 @@ def wait_startup(args):
 
 def update_breakpoints(args):
     breakpoints = args[u'breakpoints']
+    response = args[u'response']
 
-    for index in range(len(breakpoints)):
-        breakpoint = breakpoints[index]
-        breakpoints[index][u'valid'] = engine.aMiSetBreakpoint(
-            breakpoint[u'filepath'],
-            str(breakpoint[u'line'])
-        )
-
-    return_vscode(message_type='response',
+    return_vscode(message_type='info',
                   command='update_breakpoints',
                   success=True,
                   message='Breakpoints processed.',
-                  data=breakpoints)
+                  data={'breakpoints': breakpoints,
+                        'response': response})
+
+    try:
+        engine.dbclear('in', breakpoints[u'file_path'], nargout=0)
+
+        for index in range(len(breakpoints[u'breakpoints'])):
+            breakpoint = breakpoints[u'breakpoints'][index]
+            breakpoints[u'breakpoints'][index][u'valid'] = \
+                engine.aMiSetBreakpoint(
+                    breakpoints[u'file_path'],
+                    str(breakpoint[u'line'])
+                )
+
+        return_vscode(message_type='response',
+                      command='update_breakpoints',
+                      success=True,
+                      message='Breakpoints processed.',
+                      data={'breakpoints': breakpoints,
+                            'response': response})
+
+    except MatlabEngineError as error:
+        return_vscode(message_type='response',
+                      command='connect',
+                      success=False,
+                      message=str(error),
+                      data={'args': args})
+
+
+def get_stack_frames(args):
+    pass
 
 
 def ping(args):
@@ -139,6 +181,7 @@ COMMANDS = {
     'connect': connect,
     'wait_startup': wait_startup,
     'update_breakpoints': update_breakpoints,
+    'get_stack_frames': get_stack_frames,
     'ping': ping
 }
 

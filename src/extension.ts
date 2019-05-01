@@ -38,6 +38,23 @@ type success_callback_chain = {
 } | undefined;
 
 
+export function createSessionTag(context: vscode.ExtensionContext) {
+	// Prepare tag for finding the Matlab shared session
+	const current_date = new Date();
+	const year = current_date.getUTCFullYear();
+	const month = current_date.getUTCMonth();
+	const day = current_date.getUTCDate();
+	const hour = current_date.getUTCHours();
+	const minute = current_date.getUTCMinutes();
+	const second = current_date.getUTCSeconds();
+	const username = userInfo().username;
+	let session_tag = `${year}${month}${day}${hour}${minute}${second}`;
+	session_tag = username + session_tag;
+	
+	context.workspaceState.update('matlab_session_tag', session_tag);
+}
+
+
 export function find_matlab_terminal(context: vscode.ExtensionContext) : vscode.Terminal | undefined {
 	let matlab_terminal_id = context.workspaceState.get('matlab_terminal_id');
 	if (matlab_terminal_id !== undefined) {
@@ -290,6 +307,8 @@ export function activate(context: vscode.ExtensionContext) {
 	// This line of code will only be executed once when your extension is activated
 	console.log('"aMi" is now active!');
 
+	createSessionTag(context);
+
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
@@ -313,7 +332,7 @@ export function activate(context: vscode.ExtensionContext) {
 		matlab_terminal.hide();
 
 		// Prepare tag for finding the Matlab shared session
-		const current_date = new Date();
+		/*const current_date = new Date();
 		const year = current_date.getUTCFullYear();
 		const month = current_date.getUTCMonth();
 		const day = current_date.getUTCDate();
@@ -322,23 +341,24 @@ export function activate(context: vscode.ExtensionContext) {
 		const second = current_date.getUTCSeconds();
 		const username = userInfo().username;
 		let session_tag = `${year}${month}${day}${hour}${minute}${second}`;
-		session_tag = username + session_tag;
+		session_tag = username + session_tag;*/
+		let session_tag = context.workspaceState.get('matlab_session_tag');
 
 		// Start Matlab in shared mode
+		const username = userInfo().username;
 		let log_dir = '/tmp/' + username + '/matlab' + session_tag;
 		matlab_terminal.sendText('mkdir -p ' + log_dir);
 		matlab_terminal.sendText('chmod og-rwx ' + log_dir);
-		let matlab_command = 'tee -i ' + log_dir + '/input.log';
-		matlab_command = matlab_command + ' | matlab -nodesktop';
+		let matlab_command = 'matlab -nodesktop ';
 		matlab_command = matlab_command + ' -r \"matlab.engine.shareEngine(\'';
 		matlab_command = matlab_command + session_tag + '\')\"';
+		matlab_command = matlab_command + ' | tee -i ' + log_dir + '/input.log';
 		matlab_terminal.sendText('reset');
 		matlab_terminal.show(false);
 		matlab_terminal.sendText(matlab_command, true);
 		vscode.window.showInformationMessage('Matlab is starting...');
 
 		// Register Matlab command window terminal
-		context.workspaceState.update('matlab_session_tag', session_tag);
 		context.workspaceState.update(
 			'matlab_terminal_id',
 			matlab_terminal.processId);
@@ -482,7 +502,11 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
-	const factory = new MatlabDebugDescriptorFactory();
+	const factory = new MatlabDebugDescriptorFactory(
+		context.workspaceState.get('matlab_session_tag'),
+		context.extensionPath,
+		context.workspaceState.get('input_log_file')
+	);
 	context.subscriptions.push(
 		vscode.debug.registerDebugAdapterDescriptorFactory(
 			'matlab',
@@ -554,6 +578,32 @@ class MatlabDebugDescriptorFactory implements
 	vscode.DebugAdapterDescriptorFactory {
 	
 	private server?: Net.Server;
+	private sessionTag: string;
+	private extensionFolder: string;
+	private inputLogFile: string;
+
+	constructor(
+		sessionTag: string | undefined,
+		extensionFolder: string,
+		inputLogFile: string | undefined
+	) {
+		if (sessionTag !== undefined) {
+			this.sessionTag = sessionTag;
+		}
+		else {
+			console.error('matlab_session_tag was not correctly registered.');
+			this.sessionTag = '';
+		}
+		this.extensionFolder = extensionFolder;
+		if (inputLogFile !== undefined) {
+			this.inputLogFile = inputLogFile;
+		}
+		else {
+			console.error('matlab input log file was not correctly registered.');
+			this.inputLogFile = '/dev/null';
+		}
+		
+	}
 	
 	createDebugAdapterDescriptor(
 		session: vscode.DebugSession,
@@ -563,7 +613,11 @@ class MatlabDebugDescriptorFactory implements
 		if (!this.server) {
 			this.server = Net.createServer(
 				socket => {
-					const session = new MatlabDebugSession();
+					const session = new MatlabDebugSession(
+						this.sessionTag,
+						this.extensionFolder,
+						this.inputLogFile
+					);
 					session.setRunAsServer(true);
 					session.start(<NodeJS.ReadableStream>socket, socket);
 				}
