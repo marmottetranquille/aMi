@@ -66,7 +66,7 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
                 console.log(response);
                 this.sendResponse(response);
             }
-        )
+        );
 
         this._runtime.on(
             'inputEvent',

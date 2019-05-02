@@ -11,6 +11,7 @@ the Feature section bellow.
 This extension is intended for Linux users (so most should work on MacOS).
 
 **Current version 0.2.0**.
+Version 0.3.0 is now mostly functional and can be compiled using its branch.
 
 ## What this extension is not about
 
@@ -41,7 +42,12 @@ preclude from using Windows, but I just don't own one...
 ### To stop Matlab
 
 * Open the command palette using `Ctrl+Shift+P`
-* Type `aMi: Start Matlab` in the command palette
+* Type `aMi: Stop Matlab` in the command palette
+
+### To start interactive debugging
+
+* Open the command palette using `Ctrl+Shift+P`
+* Type `aMi: Start debug adaptor` in the command palette
 
 ## Features
 
@@ -129,5 +135,12 @@ None for now.
   error raised at exit is simply ignored.
 * Command history is lost when VSCode is closed before using `aMi: Stop Matlab`
 or terminating Matlab manualy from its command window (using `exit`).
+* The debug stop button (red square) is misleading as it forces the debug
+adaptor to shut down. If you want to stop debugging and return to the command
+window, use debug restart button instead (green rotating arrow). If you stop
+the debug adaptor by mistake, just restarting it should restore previous state.
+Note: there will be no fix to this as this is the behaviour enforced by the
+debug protocol.
+* Some error messages in the command window are printed incorrectly.
 
 ## Release Notes
