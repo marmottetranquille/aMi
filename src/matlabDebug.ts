@@ -37,6 +37,7 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         response.success = true;
 
         response.body.supportsConfigurationDoneRequest = true;
+        response.body.supportsRestartRequest = true;
 
         this._runtime.on(
             'startupDone',
@@ -58,6 +59,14 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
                 this.sendResponse(response);
             }
         );
+
+        this._runtime.on(
+            'stackTraceResponse',
+            (response) => {
+                console.log(response);
+                this.sendResponse(response);
+            }
+        )
 
         this._runtime.on(
             'inputEvent',
@@ -144,6 +153,73 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         args: DebugProtocol.StackTraceArguments
     ) {
         this._runtime.getStackTrace(response);
+    }
+
+    protected async scopesRequest(
+        response: DebugProtocol.ScopesResponse,
+        args: DebugProtocol.ScopesArguments
+    ) {
+        response.body = response.body || {};
+        response.body.scopes = new Array<DebugAdapter.Scope>();
+        
+        console.log(response);
+        this.sendResponse(response);
+    }
+
+    protected async variablesRequest(
+        response: DebugProtocol.VariablesResponse,
+        args: DebugProtocol.VariablesArguments
+    ) {
+        response.body = response.body || {};
+        response.body.variables = new Array<DebugAdapter.Variable>();
+
+        console.log(response);
+        this.sendResponse(response);
+    }
+
+    protected async continueRequest(
+        response: DebugProtocol.ContinueResponse,
+        args: DebugProtocol.ContinueArguments
+    ) {
+        this._runtime.continue();
+        response.body = response.body || {};
+        this.sendResponse(response);
+    }
+
+    protected async nextRequest(
+        response: DebugProtocol.NextResponse,
+        args: DebugProtocol.NextArguments
+    ) {
+        this._runtime.step();
+        response.body = response.body || {};
+        this.sendResponse(response);
+    }
+
+    protected async stepInRequest(
+        response: DebugProtocol.StepInResponse,
+        args: DebugProtocol.StepInArguments
+    ) {
+        this._runtime.stepIn();
+        response.body = response.body || {};
+        this.sendResponse(response);
+    }
+
+    protected async stepOutRequest(
+        response: DebugProtocol.StepOutResponse,
+        args: DebugProtocol.StepOutArguments
+    ) {
+        this._runtime.stepOut();
+        response.body = response.body || {};
+        this.sendResponse(response);
+    }
+
+    protected async restartRequest(
+        response: DebugProtocol.RestartResponse,
+        args: DebugProtocol.RestartArguments
+    ) {
+        this._runtime.dbquit();
+        response.body = response.body || {};
+        this.sendResponse(response);
     }
 
 }

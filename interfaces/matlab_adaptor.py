@@ -101,11 +101,11 @@ async def input_event_emitter():
                 old_size = os.stat(command_input_log_file).st_size
                 command_input_log.seek(old_size, 0)
             else:
-                await asyncio.sleep(0.25)
+                await asyncio.sleep(0.01)
 
         else:
 
-            await asyncio.sleep(0.25)
+            await asyncio.sleep(0.01)
 
 
 def connect(args):
@@ -203,7 +203,92 @@ def update_breakpoints(args):
 
 
 def get_stack_frames(args):
-    pass
+    from io import StringIO
+    global engine
+    m_stdout = StringIO()
+    m_stderr = StringIO()
+    try:
+        engine.aMiGetStackTrace(nargout=0,
+                                stdout=m_stdout,
+                                stderr=m_stderr)
+        stack_frames = m_stdout.getvalue()
+        return_vscode(message_type='info',
+                      command='get_stack_frames',
+                      message=stack_frames)
+        stack_frames = json.loads(stack_frames)
+        return_vscode(message_type='response',
+                      command='get_stack_frames',
+                      success=True,
+                      message='',
+                      data={'stackFrames': stack_frames,
+                            'response': args})
+    except MatlabEngineError as error:
+        return_vscode(message_type='error',
+                      command='get_stack_frames',
+                      success=False,
+                      message=str(error),
+                      data={'args': args})
+
+
+def dbcont(args):
+    global engine
+    # no need to do much, it will be caught back by an input event
+    try:
+        engine.dbcont(nargout=0)
+    except MatlabEngineError as error:
+        return_vscode(message_type='error',
+                      command='continue',
+                      success=False,
+                      message=str(error),
+                      data={'args': args})
+
+
+def step(args):
+    global engine
+    try:
+        engine.dbstep(nargout=0)
+    except MatlabEngineError as error:
+        return_vscode(message_type='error',
+                      command='step',
+                      success=False,
+                      message=str(error),
+                      data={'args': args})
+
+
+def step_in(args):
+    global engine
+    try:
+        engine.dbstep('in', nargout=0)
+    except MatlabEngineError as error:
+        return_vscode(message_type='error',
+                      command='step_in',
+                      success=False,
+                      message=str(error),
+                      data={'args': args})
+
+
+def step_out(args):
+    global engine
+    try:
+        engine.dbstep('out', nargout=0)
+    except MatlabEngineError as error:
+        return_vscode(message_type='error',
+                      command='step_out',
+                      success=False,
+                      message=str(error),
+                      data={'args': args})
+
+
+def dbquit(args):
+    global engine
+    try:
+        engine.dbquit(nargout=0)
+    except MatlabEngineError as error:
+        return_vscode(message_type='error',
+                      command='dbquit',
+                      success=False,
+                      message=str(error),
+                      data={'args': args})
 
 
 def ping(args):
@@ -219,6 +304,11 @@ COMMANDS = {
     'wait_startup': wait_startup,
     'update_breakpoints': update_breakpoints,
     'get_stack_frames': get_stack_frames,
+    'continue': dbcont,
+    'step': step,
+    'step_in': step_in,
+    'step_out': step_out,
+    'dbquit': dbquit,
     'ping': ping
 }
 

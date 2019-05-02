@@ -3,6 +3,7 @@ import * as events from 'events';
 import { DebugProtocol } from 'vscode-debugprotocol';
 import { emit } from 'cluster';
 import { RelativePattern } from 'vscode';
+import { Response } from 'vscode-debugadapter';
 
 
 type command =
@@ -10,6 +11,11 @@ type command =
     'wait_startup' |
     'update_breakpoints' |
     'get_stack_frames' |
+    'continue' |
+    'step' |
+    'step_in' |
+    'step_out' |
+    'dbquit' |
     'input_event_emitter' |
     'ping';
 
@@ -115,6 +121,22 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
         }
     }
 
+    public processGetStackFramesResponse(
+        success: boolean,
+        data: {
+            stackFrames: DebugProtocol.StackFrame[],
+            response: DebugProtocol.StackTraceResponse
+        }
+    ) {
+        let response = data.response;
+        response.success = success;
+
+        response.body = response.body || {};
+        response.body.stackFrames = data.stackFrames;
+
+        this.emit('stackTraceResponse', response);
+    }
+
     public processInputEventResponse() {
         this.emit('inputEvent');
     }
@@ -145,6 +167,12 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
                         break;
                     case 'update_breakpoints':
                         me.processSetBreakpointsResponse(
+                            response.success,
+                            response.data
+                        );
+                        break;
+                    case 'get_stack_frames':
+                        me.processGetStackFramesResponse(
                             response.success,
                             response.data
                         );
@@ -219,6 +247,51 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
             this._pyshell.send({
                 command: 'get_stack_frames',
                 args: response
+            } as adaptorCommand);
+        }
+    }
+
+    public continue() {
+        if (this._pyshell !== undefined) {
+            this._pyshell.send({
+                command: 'continue',
+                args: {}
+            } as adaptorCommand);
+        }
+    }
+
+    public step() {
+        if (this._pyshell !== undefined) {
+            this._pyshell.send({
+                command: 'step',
+                args: {}
+            } as adaptorCommand);
+        }
+    }
+
+    public stepIn() {
+        if (this._pyshell !== undefined) {
+            this._pyshell.send({
+                command: 'step_in',
+                args: {}
+            } as adaptorCommand);
+        }
+    }
+
+    public stepOut() {
+        if (this._pyshell !== undefined) {
+            this._pyshell.send({
+                command: 'step_out',
+                args: {}
+            } as adaptorCommand);
+        }
+    }
+
+    public dbquit() {
+        if (this._pyshell !== undefined) {
+            this._pyshell.send({
+                command: 'dbquit',
+                args: {}
             } as adaptorCommand);
         }
     }
