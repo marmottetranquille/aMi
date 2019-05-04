@@ -4,6 +4,7 @@ import {
     MatlabRuntimeAdaptor,
     MatlabBreakpoint
 } from './matlabAdaptor';
+import { Terminal } from 'vscode';
 import { cpus } from 'os';
 
 interface MatlabLaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
@@ -12,14 +13,19 @@ interface MatlabLaunchRequestArguments extends DebugProtocol.LaunchRequestArgume
     inputLogFile: string;
 }
 
+type MatlabStatus = 'pendingOnCommandWindow' | 'debugging';
+
 export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
 
     private _runtime: MatlabRuntimeAdaptor;
+    private _matlabTerminal: Terminal; //reserved
+    private _matlabStatus: MatlabStatus;
 
     public constructor(
         sessionTag: string,
         extensionFolder: string,
-        inputLogFile: string
+        inputLogFile: string,
+        matlabTerminal: Terminal 
     ) {
         super();
         this._runtime = new MatlabRuntimeAdaptor(
@@ -27,6 +33,8 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
             extensionFolder,
             inputLogFile
         );
+        this._matlabTerminal = matlabTerminal;
+        this._matlabStatus = 'pendingOnCommandWindow';
     }
 
     protected initializeRequest(
@@ -44,6 +52,7 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
             (success: boolean) => {
                 if (success) {
                     console.log('Matlab adaptor successfuly started');
+                    this._matlabTerminal.show();
                     this.sendEvent(new DebugAdapter.InitializedEvent());
                 }
                 else {
@@ -62,8 +71,14 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
 
         this._runtime.on(
             'stackTraceResponse',
-            (response) => {
+            (response: DebugProtocol.StackTraceResponse) => {
                 console.log(response);
+                if (response.body.stackFrames.length > 1) {
+                    this._matlabStatus = 'debugging';
+                }
+                else {
+                    this._matlabStatus = 'pendingOnCommandWindow';
+                }
                 this.sendResponse(response);
             }
         );
@@ -97,8 +112,6 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         response: DebugProtocol.SetBreakpointsResponse,
         args: DebugProtocol.SetBreakpointsArguments
     ) {
-
-        let matlabBreakPoints: MatlabBreakpoint[] = new Array();
 
         if (args.breakpoints !== undefined && args.source.path !== undefined) {
             this._runtime.updateBreakPoints(
@@ -177,12 +190,26 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         this.sendResponse(response);
     }
 
+    protected async pauseRequest(
+        response: DebugProtocol.PauseResponse,
+        args: DebugProtocol.PauseArguments
+    ) {
+        // One does not simply pause Matlab
+        response.success = false;
+        this.sendResponse(response);
+    }
+
     protected async continueRequest(
         response: DebugProtocol.ContinueResponse,
         args: DebugProtocol.ContinueArguments
     ) {
-        this._runtime.continue();
         response.body = response.body || {};
+        if (this._matlabStatus === 'pendingOnCommandWindow') {
+            response.success = false;
+        }
+        else {
+            this._runtime.continue();
+        }
         this.sendResponse(response);
     }
 
@@ -190,8 +217,14 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         response: DebugProtocol.NextResponse,
         args: DebugProtocol.NextArguments
     ) {
-        this._runtime.step();
         response.body = response.body || {};
+        if (this._matlabStatus === 'pendingOnCommandWindow') {
+            response.success = false;
+        }
+        else {
+            this._runtime.step();
+            response.success = true;
+        }
         this.sendResponse(response);
     }
 
@@ -199,8 +232,14 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         response: DebugProtocol.StepInResponse,
         args: DebugProtocol.StepInArguments
     ) {
-        this._runtime.stepIn();
         response.body = response.body || {};
+        if (this._matlabStatus === 'pendingOnCommandWindow') {
+            response.success = false;
+        }
+        else {
+            this._runtime.stepIn();
+            response.success = true;
+        }
         this.sendResponse(response);
     }
 
@@ -208,8 +247,14 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         response: DebugProtocol.StepOutResponse,
         args: DebugProtocol.StepOutArguments
     ) {
-        this._runtime.stepOut();
         response.body = response.body || {};
+        if (this._matlabStatus === 'pendingOnCommandWindow') {
+            response.success = false;
+        }
+        else {
+            this._runtime.stepOut();
+            response.success = true;
+        }
         this.sendResponse(response);
     }
 
@@ -217,9 +262,21 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         response: DebugProtocol.RestartResponse,
         args: DebugProtocol.RestartArguments
     ) {
-        this._runtime.dbquit();
         response.body = response.body || {};
+        if (this._matlabStatus === 'pendingOnCommandWindow') {
+            response.success = false;
+        }
+        else {
+            this._runtime.dbquit();
+        }
         this.sendResponse(response);
     }
 
+    protected async terminateRequest(
+        response: DebugProtocol.TerminateResponse,
+        args: DebugProtocol.TerminateArguments
+    ) {
+        this._runtime.terminate();
+        response.body = response.body || {};
+    }
 }

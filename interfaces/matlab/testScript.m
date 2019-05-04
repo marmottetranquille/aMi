@@ -1,6 +1,6 @@
 % This is a long execution test script
 
-timeOut = 600;
+timeOut = 20;
 
 tic;
 

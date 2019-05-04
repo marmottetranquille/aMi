@@ -9,6 +9,7 @@ import { PythonShell } from 'python-shell';
 import { stringify } from 'querystring';
 import { toUnicode } from 'punycode';
 import * as Net from 'net';
+import { remove } from 'fs-extra';
 import { MatlabDebugSession } from './matlabDebug';
 
 
@@ -413,6 +414,11 @@ export function activate(context: vscode.ExtensionContext) {
 				vscode.window.showWarningMessage(
 					'Matlab terminal had already been closed.');
 			}
+
+			let logDir = getLogDir(context);
+			if (logDir !== undefined) {
+				remove(logDir);
+			}
 		}
 	);
 	
@@ -518,11 +524,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
-	const factory = new MatlabDebugDescriptorFactory(
-		getSessionTag(context),
-		context.extensionPath,
-		getInputLogFile(context)
-	);
+	const factory = new MatlabDebugDescriptorFactory(context);
 	context.subscriptions.push(
 		vscode.debug.registerDebugAdapterDescriptorFactory(
 			'matlab',
@@ -534,14 +536,18 @@ export function activate(context: vscode.ExtensionContext) {
 
 		//vscode.debug.onDidChangeBreakpoints(logNewBreakPoint);
 
-		const matlabConfiguration = new MatlabConfiguration(
-			getSessionTag(context),
-			getInputLogFile(context),
-			context.extensionPath);
-
-		vscode.debug.startDebugging(undefined, matlabConfiguration);
-		
-
+		const matlabTerminal = find_matlab_terminal(context);
+		if (matlabTerminal !== undefined) {
+			const matlabConfiguration = new MatlabConfiguration(
+				getSessionTag(context),
+				getInputLogFile(context),
+				context.extensionPath);
+	
+			vscode.debug.startDebugging(undefined, matlabConfiguration);
+		}
+		else {
+			vscode.window.showWarningMessage('Start Matlab first.');
+		}
 	});
 
 	context.subscriptions.push(disp_startMatlab);
@@ -594,45 +600,39 @@ class MatlabDebugDescriptorFactory implements
 	vscode.DebugAdapterDescriptorFactory {
 	
 	private server?: Net.Server;
-	private sessionTag: string;
-	private extensionFolder: string;
-	private inputLogFile: string;
+	private context: vscode.ExtensionContext;
 
 	constructor(
-		sessionTag: string | undefined,
-		extensionFolder: string,
-		inputLogFile: string | undefined
+		context: vscode.ExtensionContext
 	) {
-		if (sessionTag !== undefined) {
-			this.sessionTag = sessionTag;
-		}
-		else {
-			console.error('matlab_session_tag was not correctly registered.');
-			this.sessionTag = '';
-		}
-		this.extensionFolder = extensionFolder;
-		if (inputLogFile !== undefined) {
-			this.inputLogFile = inputLogFile;
-		}
-		else {
-			console.error('matlab input log file was not correctly registered.');
-			this.inputLogFile = '/dev/null';
-		}
-		
+		this.context = context;
 	}
 	
 	createDebugAdapterDescriptor(
 		session: vscode.DebugSession,
 		executable: vscode.DebugAdapterExecutable | undefined
 	): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
-
 		if (!this.server) {
 			this.server = Net.createServer(
-				socket => {
+				(socket) => {
+					const sessionTag = getSessionTag(this.context);
+					if (sessionTag === undefined) {
+						throw new Error('sessionTag is undefined.');
+					}
+					const extensionFolder = this.context.extensionPath;
+					const inputLogFile = getInputLogFile(this.context);
+					if (inputLogFile === undefined) {
+						throw new Error('inputLogFile is undefined.');
+					}
+					const matlabTerminal = find_matlab_terminal(this.context);
+					if (matlabTerminal === undefined) {
+						throw new Error('Could not find Matlab terminal.');
+					}
 					const session = new MatlabDebugSession(
-						this.sessionTag,
-						this.extensionFolder,
-						this.inputLogFile
+						sessionTag,
+						extensionFolder,
+						inputLogFile,
+						matlabTerminal
 					);
 					session.setRunAsServer(true);
 					session.start(<NodeJS.ReadableStream>socket, socket);

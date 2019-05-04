@@ -14,7 +14,7 @@
 	},
 	"homepage": "https://github.com/marmottetranquille/aMi",
 	"engines": {
-		"vscode": "^1.32.0"
+		"vscode": "^1.33.1"
 	},
 	"categories": [
 		"Other"

@@ -11,6 +11,7 @@ type command =
     'wait_startup' |
     'update_breakpoints' |
     'get_stack_frames' |
+    'pause' |
     'continue' |
     'step' |
     'step_in' |
@@ -64,6 +65,12 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
             }
         );
         this.connectMatlab(sessionTag, inputLogFile);
+    }
+
+    public stop() {
+        if (this._pyshell !== undefined) {
+            this._pyshell.end(() => {});
+        }
     }
 
     public processSetBreakpointsResponse(
@@ -251,6 +258,15 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
         }
     }
 
+    public pause() {
+        if (this._pyshell !== undefined) {
+            this._pyshell.send({
+                command: 'pause',
+                args: {}
+            } as adaptorCommand);
+        }
+    }
+
     public continue() {
         if (this._pyshell !== undefined) {
             this._pyshell.send({
@@ -293,6 +309,12 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
                 command: 'dbquit',
                 args: {}
             } as adaptorCommand);
+        }
+    }
+
+    public terminate() {
+        if (this._pyshell !== undefined) {
+            this._pyshell.end(() => { });
         }
     }
 }
