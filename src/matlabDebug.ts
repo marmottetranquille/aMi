@@ -85,11 +85,11 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
 
         this._runtime.on(
             'inputEvent',
-            (args) => {
+            (reason: string) => {
                 console.log('stopped after command window input execution.');
                 this.sendEvent(
                     new DebugAdapter.StoppedEvent(
-                        'commandWindowInput',
+                        reason,
                         0
                     )
                 );

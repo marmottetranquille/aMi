@@ -53,8 +53,6 @@ async def input_event_emitter():
     global log_python_adaptor
     import time
     from io import StringIO
-    m_stdout = StringIO()
-    m_stderr = StringIO()
 
     if log_python_adaptor:
         input_event_log = open('/tmp/aMiInputEvent.log', 'w+')
@@ -98,26 +96,30 @@ async def input_event_emitter():
                     command_input_log.seek(old_size, 0)
 
             if input_event_detected:
-                engine.eval("disp('pong');",
-                            nargout=0,
-                            stdout=m_stdout,
-                            stderr=m_stderr)
+                m_stdout = StringIO()
+                m_stderr = StringIO()
+                engine.aMiStopEventDiscriminator(nargout=0,
+                                                 stdout=m_stdout,
+                                                 stderr=m_stderr)
+
+                reason_string = m_stdout.getvalue()
+                reason = json.loads(reason_string)
 
                 return_vscode(
                     message_type='response',
                     command='input_event_emitter',
                     message='',
-                    data={}
+                    data=reason
                 )
 
                 old_size = os.stat(command_input_log_file).st_size
                 command_input_log.seek(old_size, 0)
             else:
-                await asyncio.sleep(0.01)
+                await asyncio.sleep(0.005)
 
         else:
 
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.005)
 
 
 def connect(args):

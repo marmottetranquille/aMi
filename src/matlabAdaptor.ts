@@ -144,8 +144,8 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
         this.emit('stackTraceResponse', response);
     }
 
-    public processInputEventResponse() {
-        this.emit('inputEvent');
+    public processInputEventResponse(responseData: {reason: string}) {
+        this.emit('inputEvent', responseData.reason);
     }
 
     private processResponse(
@@ -185,7 +185,7 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
                         );
                         break;
                     case 'input_event_emitter':
-                        me.processInputEventResponse();
+                        me.processInputEventResponse(response.data);
                         break;
                 }
         }
