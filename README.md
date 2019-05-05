@@ -10,8 +10,7 @@ the Feature section bellow.
 
 This extension is intended for Linux users (so most should work on MacOS).
 
-**Current version 0.2.0**.
-Version 0.3.0 is now mostly functional and can be compiled using its branch.
+**Current version 0.3.0**.
 
 ## What this extension is not about
 
@@ -48,6 +47,10 @@ preclude from using Windows, but I just don't own one...
 
 * Open the command palette using `Ctrl+Shift+P`
 * Type `aMi: Start debug adaptor` in the command palette
+
+### To stop interactive debugging
+
+* Use the stop button (red square) in the debug command widget.
 
 ## Features
 
@@ -141,6 +144,10 @@ window, use debug restart button instead (green rotating arrow). If you stop
 the debug adaptor by mistake, just restarting it should restore previous state.
 Note: there will be no fix to this as this is the behaviour enforced by the
 debug protocol.
+* Breakpoints remain set after the debug addaptor has been shut down (not sure
+yet if this is an issue or desirable feature - feedback welcome). To clear all
+breakpoints: re start debug adaptor and remove all breakpoints, or
+alternatively enter `dbclear all` in the Matlab command window.
 * Some error messages in the command window are printed incorrectly.
 
 ## Release Notes

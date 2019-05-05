@@ -8,6 +8,9 @@ import asyncio
 import select
 
 
+log_python_adaptor = False
+
+
 def return_vscode(message_type=None,
                   success=None,
                   command=None,
@@ -47,38 +50,47 @@ async def input_event_emitter():
     global command_input_log_file
     global engine
     global execute_input_event_emitter
+    global log_python_adaptor
     import time
     from io import StringIO
     m_stdout = StringIO()
     m_stderr = StringIO()
-    input_event_log = open('/tmp/aMiInputEvent.log', 'w+')
-    input_event_log.write('TEST\n')
-    input_event_log.flush()
+
+    if log_python_adaptor:
+        input_event_log = open('/tmp/aMiInputEvent.log', 'w+')
+        input_event_log.write('TEST\n')
+        input_event_log.flush()
+
     old_size = 0
 
     while True:
         if execute_input_event_emitter:
             if old_size == 0:
-                input_event_log.write('checking initial size\n')
-                input_event_log.write(str(command_input_log_file) + '\n')
-                input_event_log.flush()
+                if log_python_adaptor:
+                    input_event_log.write('checking initial size\n')
+                    input_event_log.write(str(command_input_log_file) + '\n')
+                    input_event_log.flush()
                 old_size = os.stat(command_input_log_file).st_size
                 command_input_log = open(str(command_input_log_file), 'r')
 
             new_size = os.stat(command_input_log_file).st_size
 
-            input_event_log.write(str(execute_input_event_emitter) + ' ' +
-                                  str(old_size) + ' ' + str(new_size) + '\n')
-            input_event_log.flush()
+            if log_python_adaptor:
+                input_event_log.write(str(execute_input_event_emitter) + ' ' +
+                                      str(old_size) + ' ' +
+                                      str(new_size) + '\n')
+                input_event_log.flush()
 
             input_event_detected = False
 
             if old_size < new_size:
                 command_input_log.seek(old_size, 0)
                 new_line = command_input_log.readline()
-                input_event_log.write(new_line + ' ' + str('\n' in new_line) +
-                                      '\n')
-                input_event_log.flush()
+                if log_python_adaptor:
+                    input_event_log.write(new_line + ' ' +
+                                          str('\n' in new_line) + '\n')
+                    input_event_log.flush()
+
                 if new_line and '\n' in new_line:
                     input_event_detected = True
                     old_size = new_size
@@ -333,8 +345,9 @@ async def adaptor_listner():
         if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
             line = sys.stdin.readline()
             try:
-                input_log.write(line)
-                input_log.flush()
+                if log_python_adaptor:
+                    input_log.write(line)
+                    input_log.flush()
                 process_line(line)
             except Exception as e:
                 return_vscode(
@@ -355,7 +368,9 @@ if __name__ == '__main__':
                   success=True,
                   message=str(sys.version),
                   data={})
-    input_log = open('/tmp/aMiInput.log', 'a+')
+
+    if log_python_adaptor:
+        input_log = open('/tmp/aMiInput.log', 'a+')
 
     loop = asyncio.get_event_loop_policy().new_event_loop()
     asyncio.set_event_loop(loop)
