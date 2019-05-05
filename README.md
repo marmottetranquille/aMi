@@ -149,5 +149,8 @@ yet if this is an issue or desirable feature - feedback welcome). To clear all
 breakpoints: re start debug adaptor and remove all breakpoints, or
 alternatively enter `dbclear all` in the Matlab command window.
 * Some error messages in the command window are printed incorrectly.
+* Debugging files not in path (run file in place) does not work.
+* Step in does not automatically update focused file, one need to use the call
+stack pannel. Once in, stepping again focus back to the calling file.
 
 ## Release Notes

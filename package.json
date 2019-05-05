@@ -4,7 +4,7 @@
 	"displayName": "aMi",
 	"description": "alternative Matlab ide",
 	"icon": "images/aMi128.png",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/marmottetranquille/aMi.git"
@@ -135,7 +135,10 @@
 		"ls-archive": "^1.3.1",
 		"read-package-json": "^2.0.13",
 		"zip": "^1.2.0",
-		"python-shell": "^1.0.7"
+		"python-shell": "^1.0.7",
+		"@types/fs-extra": "^5.0.5",
+		"fs-extra": "^7.0.1",
+		"vscode-debugadapter": "^1.34.0"
 	},
 	"devDependencies": {
 		"typescript": "^3.3.1",
