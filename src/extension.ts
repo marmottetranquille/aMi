@@ -8,6 +8,9 @@ import { Socket } from 'net';
 import { PythonShell } from 'python-shell';
 import { stringify } from 'querystring';
 import { toUnicode } from 'punycode';
+import * as Net from 'net';
+import { remove } from 'fs-extra';
+import { MatlabDebugSession } from './matlabDebug';
 
 
 type chained_argouts = {
@@ -35,6 +38,42 @@ type success_callback_chain = {
 	following: success_callback_chain | undefined
 } | undefined;
 
+
+export function createSessionTag(context: vscode.ExtensionContext) {
+	// Prepare tag for finding the Matlab shared session
+	const current_date = new Date();
+	const year = current_date.getUTCFullYear();
+	const month = current_date.getUTCMonth();
+	const day = current_date.getUTCDate();
+	const hour = current_date.getUTCHours();
+	const minute = current_date.getUTCMinutes();
+	const second = current_date.getUTCSeconds();
+	const username = userInfo().username;
+	let session_tag = `${year}${month}${day}${hour}${minute}${second}`;
+	session_tag = username + session_tag;
+
+	let log_dir = '/tmp/' + username + '/matlab' + session_tag;
+	
+	context.workspaceState.update('matlab_session_tag', session_tag);
+	context.workspaceState.update('log_dir', log_dir);
+	context.workspaceState.update('input_log_file', log_dir + '/input.log');
+}
+
+
+export function getSessionTag(context: vscode.ExtensionContext): any {
+	let sessionTag = context.workspaceState.get('matlab_session_tag');
+	return sessionTag;
+}
+
+export function getLogDir(context: vscode.ExtensionContext): any {
+	let logDir = context.workspaceState.get('log_dir');
+	return logDir;
+}
+
+export function getInputLogFile(context: vscode.ExtensionContext): any {
+	let inputLogFile = context.workspaceState.get('input_log_file');
+	return inputLogFile;
+}
 
 export function find_matlab_terminal(context: vscode.ExtensionContext) : vscode.Terminal | undefined {
 	let matlab_terminal_id = context.workspaceState.get('matlab_terminal_id');
@@ -288,6 +327,8 @@ export function activate(context: vscode.ExtensionContext) {
 	// This line of code will only be executed once when your extension is activated
 	console.log('"aMi" is now active!');
 
+	createSessionTag(context);
+
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
@@ -308,10 +349,10 @@ export function activate(context: vscode.ExtensionContext) {
 			'Matlab',
 			undefined,
 			undefined);
-		matlab_terminal.show(false);
+		matlab_terminal.hide();
 
 		// Prepare tag for finding the Matlab shared session
-		const current_date = new Date();
+		/*const current_date = new Date();
 		const year = current_date.getUTCFullYear();
 		const month = current_date.getUTCMonth();
 		const day = current_date.getUTCDate();
@@ -320,17 +361,23 @@ export function activate(context: vscode.ExtensionContext) {
 		const second = current_date.getUTCSeconds();
 		const username = userInfo().username;
 		let session_tag = `${year}${month}${day}${hour}${minute}${second}`;
-		session_tag = username + session_tag;
+		session_tag = username + session_tag;*/
+		let session_tag = getSessionTag(context);
+		let log_dir = getLogDir(context);
+		let log_file = getInputLogFile(context);
 
 		// Start Matlab in shared mode
-		let matlab_command = 'matlab -nodesktop';
+		matlab_terminal.sendText('mkdir -p ' + log_dir);
+		matlab_terminal.sendText('chmod og-rwx ' + log_dir);
+		let matlab_command = 'matlab -nodesktop ';
 		matlab_command = matlab_command + ' -r \"matlab.engine.shareEngine(\'';
 		matlab_command = matlab_command + session_tag + '\')\"';
+		matlab_command = matlab_command + ' | tee -i ' + log_file;
+		matlab_terminal.sendText('reset');
+		matlab_terminal.show(false);
 		matlab_terminal.sendText(matlab_command, true);
-		vscode.window.showInformationMessage('Matlab is starting...');
 
 		// Register Matlab command window terminal
-		context.workspaceState.update('matlab_session_tag', session_tag);
 		context.workspaceState.update(
 			'matlab_terminal_id',
 			matlab_terminal.processId);
@@ -343,7 +390,6 @@ export function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 			let matlab_root = stdout.slice(0, -'/bin/matlab'.length - 1);
-			vscode.window.showInformationMessage('matlab found in ' + matlab_root);
 		});
 
 		// Monitor startup
@@ -360,7 +406,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 			let matlab_terminal = find_matlab_terminal(context);
 			if (matlab_terminal !== undefined) {
-				const session_tag = context.workspaceState.get('matlab_session_tag');
+				const session_tag = getSessionTag(context);
 				send_exit(context);
 				confirm_stop(context);
 			}
@@ -368,13 +414,18 @@ export function activate(context: vscode.ExtensionContext) {
 				vscode.window.showWarningMessage(
 					'Matlab terminal had already been closed.');
 			}
+
+			let logDir = getLogDir(context);
+			if (logDir !== undefined) {
+				remove(logDir);
+			}
 		}
 	);
 	
 	let disp_runEditorScript = vscode.commands.registerCommand(
 		'aMi.runEditorScript', () => {
 			
-			const session_tag = context.workspaceState.get('matlab_session_tag');
+			const session_tag = getSessionTag(context);
 			if (session_tag === undefined) {
 				vscode.window.showErrorMessage('aMi: Please start Matlab first.');
 				return;
@@ -407,7 +458,7 @@ export function activate(context: vscode.ExtensionContext) {
 	let disp_runExplorerScript = vscode.commands.registerCommand(
 		'aMi.runExplorerScript', (uri: vscode.Uri) => {
 			
-			const session_tag = context.workspaceState.get('matlab_session_tag');
+			const session_tag = getSessionTag(context);
 			if (session_tag === undefined) {
 				vscode.window.showErrorMessage('aMi: Please start Matlab first.');
 				return;
@@ -438,7 +489,7 @@ export function activate(context: vscode.ExtensionContext) {
 	let disp_runEditorSelection = vscode.commands.registerCommand(
 		'aMi.runEditorSelection', () => {
 			
-			const session_tag = context.workspaceState.get('matlab_session_tag');
+			const session_tag = getSessionTag(context);
 			if (session_tag === undefined) {
 				vscode.window.showErrorMessage('aMi: Please start Matlab first.');
 				return;
@@ -473,13 +524,130 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
+	const factory = new MatlabDebugDescriptorFactory(context);
+	context.subscriptions.push(
+		vscode.debug.registerDebugAdapterDescriptorFactory(
+			'matlab',
+			factory
+		)
+	);
+
+	let startDebugAdaptor = vscode.commands.registerCommand('aMi.startDebugAdaptor', () => {
+
+		//vscode.debug.onDidChangeBreakpoints(logNewBreakPoint);
+
+		const matlabTerminal = find_matlab_terminal(context);
+		if (matlabTerminal !== undefined) {
+			const matlabConfiguration = new MatlabConfiguration(
+				getSessionTag(context),
+				getInputLogFile(context),
+				context.extensionPath);
+	
+			vscode.debug.startDebugging(undefined, matlabConfiguration);
+		}
+		else {
+			vscode.window.showWarningMessage('Start Matlab first.');
+		}
+	});
+
 	context.subscriptions.push(disp_startMatlab);
 	context.subscriptions.push(disp_stopMatlab);
 	context.subscriptions.push(disp_runEditorScript);
 	context.subscriptions.push(disp_runExplorerScript);
 	context.subscriptions.push(disp_runEditorSelection);
+	context.subscriptions.push(factory);
+	context.subscriptions.push(startDebugAdaptor);
 }
 
 // this method is called when your extension is deactivated
 export function deactivate() {
+}
+
+export class MatlabConfiguration implements vscode.DebugConfiguration {
+
+    type: string;
+    name: string;
+    request: string;
+	extensionFolder: string;
+	sessionTag: string | undefined;
+	inputLogFile: string | undefined;
+
+	public constructor(
+		sessionTag: string | undefined,
+		inputLogFile: string | undefined,
+		extensionFolder: string
+	) {
+        this.type = 'matlab';
+        this.name = 'Start Matlab';
+        this.request = 'launch';
+		this.extensionFolder = extensionFolder;
+		if (sessionTag !== undefined) {
+			this.sessionTag = sessionTag;
+		}
+		else {
+			console.error('Matlab sessionTag undefined; did you start Matlab?');
+		}
+		if (inputLogFile !== undefined) {
+			this.inputLogFile = inputLogFile;
+		}
+		else {
+			console.error('Input log file is undefined.');
+		}
+    }
+}
+
+class MatlabDebugDescriptorFactory implements
+	vscode.DebugAdapterDescriptorFactory {
+	
+	private server?: Net.Server;
+	private context: vscode.ExtensionContext;
+
+	constructor(
+		context: vscode.ExtensionContext
+	) {
+		this.context = context;
+	}
+	
+	createDebugAdapterDescriptor(
+		session: vscode.DebugSession,
+		executable: vscode.DebugAdapterExecutable | undefined
+	): vscode.ProviderResult<vscode.DebugAdapterDescriptor> {
+		if (!this.server) {
+			this.server = Net.createServer(
+				(socket) => {
+					const sessionTag = getSessionTag(this.context);
+					if (sessionTag === undefined) {
+						throw new Error('sessionTag is undefined.');
+					}
+					const extensionFolder = this.context.extensionPath;
+					const inputLogFile = getInputLogFile(this.context);
+					if (inputLogFile === undefined) {
+						throw new Error('inputLogFile is undefined.');
+					}
+					const matlabTerminal = find_matlab_terminal(this.context);
+					if (matlabTerminal === undefined) {
+						throw new Error('Could not find Matlab terminal.');
+					}
+					const session = new MatlabDebugSession(
+						sessionTag,
+						extensionFolder,
+						inputLogFile,
+						matlabTerminal
+					);
+					session.setRunAsServer(true);
+					session.start(<NodeJS.ReadableStream>socket, socket);
+				}
+			).listen(0);
+		}
+
+		let addressInfo = this.server.address() as Net.AddressInfo;
+
+		return new vscode.DebugAdapterServer(addressInfo.port);
+	}
+
+	dispose() {
+		if (this.server) {
+			this.server.close();
+		}
+	}
 }
