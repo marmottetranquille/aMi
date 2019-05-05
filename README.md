@@ -10,7 +10,7 @@ the Feature section bellow.
 
 This extension is intended for Linux users (so most should work on MacOS).
 
-**Current version 0.3.0**.
+**Current version 0.3.1**.
 
 ## What this extension is not about
 
@@ -150,7 +150,6 @@ breakpoints: re start debug adaptor and remove all breakpoints, or
 alternatively enter `dbclear all` in the Matlab command window.
 * Some error messages in the command window are printed incorrectly.
 * Debugging files not in path (run file in place) does not work.
-* Step in does not automatically update focused file, one need to use the call
-stack pannel. Once in, stepping again focus back to the calling file.
 
-## Release Notes
+## Release Notes Version 0.3.1
+* Solved [issue #33](https://github.com/marmottetranquille/aMi/issues/33).
