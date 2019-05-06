@@ -46,6 +46,30 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
 
         response.body.supportsConfigurationDoneRequest = true;
         response.body.supportsRestartRequest = true;
+        response.body.supportsExceptionOptions = true;
+
+        let exceptionFilters = new Array<DebugProtocol.ExceptionBreakpointsFilter>();
+        exceptionFilters.push(
+            {
+                filter: 'errors',
+                label: 'Errors',
+                default: false
+            } as DebugProtocol.ExceptionBreakpointsFilter
+        );
+        exceptionFilters.push(
+            {
+                filter: 'caughtErrors',
+                label: 'Caught Errors'
+            } as DebugProtocol.ExceptionBreakpointsFilter
+        );
+        exceptionFilters.push(
+            {
+                filter: 'warnings',
+                label: 'Warnings'
+            } as DebugProtocol.ExceptionBreakpointsFilter
+        );
+
+        response.body.exceptionBreakpointFilters = exceptionFilters;
 
         this._runtime.on(
             'startupDone',
@@ -127,6 +151,8 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         args: DebugProtocol.SetExceptionBreakpointsArguments
     ) {
         response.success = true;
+        console.log(args);
+        this._runtime.updateExceptionBreakpoints(args);
         this.sendResponse(response);
     }
 
@@ -269,6 +295,14 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         else {
             this._runtime.dbquit();
         }
+        this.sendResponse(response);
+    }
+
+    protected async exceptionInfoRequest(
+        response: DebugProtocol.ExceptionInfoResponse,
+        args: DebugProtocol.ExceptionInfoArguments
+    ) {
+        response.body = response.body || {};
         this.sendResponse(response);
     }
 

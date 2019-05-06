@@ -44,13 +44,14 @@ def return_vscode(message_type=None,
 engine = None
 command_input_log_file = None
 execute_input_event_emitter = False
-
+stop_on_warnings = False
 
 async def input_event_emitter():
     global command_input_log_file
     global engine
     global execute_input_event_emitter
     global log_python_adaptor
+    global stop_on_warnings
     import time
     from io import StringIO
 
@@ -98,7 +99,8 @@ async def input_event_emitter():
             if input_event_detected:
                 m_stdout = StringIO()
                 m_stderr = StringIO()
-                engine.aMiStopEventDiscriminator(nargout=0,
+                engine.aMiStopEventDiscriminator(stop_on_warnings,
+                                                 nargout=0,
                                                  stdout=m_stdout,
                                                  stderr=m_stderr)
 
@@ -180,6 +182,7 @@ def wait_startup(args):
 
 
 def update_breakpoints(args):
+    global engine
     breakpoints = args[u'breakpoints']
     response = args[u'response']
 
@@ -214,6 +217,20 @@ def update_breakpoints(args):
                       success=False,
                       message=str(error),
                       data={'args': args})
+
+
+def update_exception_breakpoints(args):
+    global engine
+    global stop_on_warnings
+
+    engine.eval(str(args[u'errors']) + ' if error;', nargout=0)
+    engine.eval(str(args[u'caughterrors']) + ' if caught error;', nargout=0)
+    engine.eval(str(args[u'warnings']) + ' if warning;', nargout=0)
+
+    if args[u'warnings'] == u'dbstop':
+        stop_on_warnings = True
+    else:
+        stop_on_warnings = False
 
 
 def get_stack_frames(args):
@@ -317,6 +334,7 @@ COMMANDS = {
     'connect': connect,
     'wait_startup': wait_startup,
     'update_breakpoints': update_breakpoints,
+    'update_exception_breakpoints': update_exception_breakpoints,
     'get_stack_frames': get_stack_frames,
     'continue': dbcont,
     'step': step,

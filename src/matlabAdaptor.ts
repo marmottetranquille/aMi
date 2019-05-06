@@ -10,6 +10,7 @@ type command =
     'connect' |
     'wait_startup' |
     'update_breakpoints' |
+    'update_exception_breakpoints' |
     'get_stack_frames' |
     'pause' |
     'continue' |
@@ -242,6 +243,30 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
                         breakpoints: matlabBreakPoints,
                         response: response
                     }
+                } as adaptorCommand
+            );
+        }
+    }
+
+    public updateExceptionBreakpoints(
+        breakpoints: DebugProtocol.SetExceptionBreakpointsArguments
+    ) {
+        let actionList = {} as { [filter: string]: 'dbstop' | 'dbclear' };
+        actionList['errors'] = 'dbclear';
+        actionList['caughterrors'] = 'dbclear';
+        actionList['warnings'] = 'dbclear';
+
+        breakpoints.filters.forEach(
+            (filter, index) => {
+                actionList[filter] = 'dbstop';
+            }
+        );
+
+        if (this._pyshell !== undefined) {
+            this._pyshell.send(
+                {
+                    command: 'update_exception_breakpoints',
+                    args: actionList
                 } as adaptorCommand
             );
         }
