@@ -8,7 +8,7 @@ import asyncio
 import select
 
 
-log_python_adaptor = False
+log_python_adaptor = True
 
 
 def return_vscode(message_type=None,
@@ -44,6 +44,7 @@ def return_vscode(message_type=None,
 engine = None
 command_input_log_file = None
 execute_input_event_emitter = False
+input_event_log = None
 stop_on_warnings = False
 
 async def input_event_emitter():
@@ -52,6 +53,7 @@ async def input_event_emitter():
     global execute_input_event_emitter
     global log_python_adaptor
     global stop_on_warnings
+    global input_event_log
     import time
     from io import StringIO
 
@@ -65,30 +67,16 @@ async def input_event_emitter():
     while True:
         if execute_input_event_emitter:
             if old_size == 0:
-                if log_python_adaptor:
-                    input_event_log.write('checking initial size\n')
-                    input_event_log.write(str(command_input_log_file) + '\n')
-                    input_event_log.flush()
                 old_size = os.stat(command_input_log_file).st_size
                 command_input_log = open(str(command_input_log_file), 'r')
 
             new_size = os.stat(command_input_log_file).st_size
-
-            if log_python_adaptor:
-                input_event_log.write(str(execute_input_event_emitter) + ' ' +
-                                      str(old_size) + ' ' +
-                                      str(new_size) + '\n')
-                input_event_log.flush()
 
             input_event_detected = False
 
             if old_size < new_size:
                 command_input_log.seek(old_size, 0)
                 new_line = command_input_log.readline()
-                if log_python_adaptor:
-                    input_event_log.write(new_line + ' ' +
-                                          str('\n' in new_line) + '\n')
-                    input_event_log.flush()
 
                 if new_line and '\n' in new_line:
                     input_event_detected = True
@@ -105,6 +93,9 @@ async def input_event_emitter():
                                                  stderr=m_stderr)
 
                 reason_string = m_stdout.getvalue()
+                if log_python_adaptor:
+                    input_event_log.write(reason_string + '\n')
+                    input_event_log.flush()
                 reason = json.loads(reason_string)
 
                 return_vscode(
@@ -261,6 +252,38 @@ def get_stack_frames(args):
                       data={'args': args})
 
 
+def get_exception_info(args):
+    from io import StringIO
+    global engine
+    global log_python_adaptor
+    global input_event_log
+    m_stdout = StringIO()
+    m_stderr = StringIO()
+
+    # MException.last can only be called from command prompt...
+    engine.eval('aMiException = MException.last',
+                nargout=0
+                )
+
+    engine.aMiGetExceptionInfo(
+        nargout=0,
+        stdout=m_stdout,
+        stderr=m_stderr)
+    exception_info = m_stdout.getvalue()
+
+    if log_python_adaptor:
+        input_event_log.write(exception_info + '\n')
+        input_event_log.flush()
+
+    exception_info = json.loads(exception_info)
+    exception_info[u'response'] = args
+    return_vscode(message_type='response',
+                  command='get_exception_info',
+                  success=True,
+                  message='',
+                  data=exception_info)
+
+
 def dbcont(args):
     global engine
     # no need to do much, it will be caught back by an input event
@@ -336,6 +359,7 @@ COMMANDS = {
     'update_breakpoints': update_breakpoints,
     'update_exception_breakpoints': update_exception_breakpoints,
     'get_stack_frames': get_stack_frames,
+    'get_exception_info': get_exception_info,
     'continue': dbcont,
     'step': step,
     'step_in': step_in,

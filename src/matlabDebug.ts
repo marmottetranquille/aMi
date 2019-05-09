@@ -47,6 +47,7 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         response.body.supportsConfigurationDoneRequest = true;
         response.body.supportsRestartRequest = true;
         response.body.supportsExceptionOptions = true;
+        response.body.supportsExceptionInfoRequest = true;
 
         let exceptionFilters = new Array<DebugProtocol.ExceptionBreakpointsFilter>();
         exceptionFilters.push(
@@ -103,6 +104,14 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
                 else {
                     this._matlabStatus = 'pendingOnCommandWindow';
                 }
+                this.sendResponse(response);
+            }
+        );
+
+        this._runtime.on(
+            'exceptionInfoResponse',
+            (response: DebugProtocol.ExceptionInfoResponse) => {
+                console.log(response);
                 this.sendResponse(response);
             }
         );
@@ -303,6 +312,7 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         args: DebugProtocol.ExceptionInfoArguments
     ) {
         response.body = response.body || {};
+        this._runtime.getExceptionInfo(response);
         this.sendResponse(response);
     }
 

@@ -14,7 +14,7 @@ while toc <= timeOut
     try
         str2double();
     catch e
-        if x > 10
+        if x > 1
             error(e);
         end
     end
