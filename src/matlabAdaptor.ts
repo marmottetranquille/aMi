@@ -1,16 +1,15 @@
 import * as pyshell from 'python-shell';
 import * as events from 'events';
 import { DebugProtocol } from 'vscode-debugprotocol';
-import { emit } from 'cluster';
-import { RelativePattern } from 'vscode';
-import { Response } from 'vscode-debugadapter';
 
 
 type command =
     'connect' |
     'wait_startup' |
     'update_breakpoints' |
+    'update_exception_breakpoints' |
     'get_stack_frames' |
+    'get_exception_info' |
     'pause' |
     'continue' |
     'step' |
@@ -18,7 +17,8 @@ type command =
     'step_out' |
     'dbquit' |
     'input_event_emitter' |
-    'ping';
+    'ping' |
+    'terminate';
 
 type adaptorResponse = {
     message_type: 'response' | 'error' | 'info',
@@ -144,6 +144,30 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
         this.emit('stackTraceResponse', response);
     }
 
+    public processGetExceptionInfoResponse(
+        success: boolean,
+        data: {
+            identifier: string,
+            message: string,
+            stack: DebugProtocol.StackFrame[],
+            response: DebugProtocol.ExceptionInfoResponse
+        }
+    ) {
+        let response = data.response;
+        response.body = response.body || {};
+        response.body.breakMode = 'always';
+        response.body.exceptionId = data.identifier;
+        response.body.description = data.message;
+        response.body.details = {
+            message: data.message,
+            typeName: data.identifier,
+            fullTypeName: data.identifier,
+            stackTrace: 'some stupid stack'
+        } as DebugProtocol.ExceptionDetails;
+        console.log(response);
+        this.emit('exceptionInfoResponse', response);
+    }
+
     public processInputEventResponse(responseData: {reason: string}) {
         this.emit('inputEvent', responseData.reason);
     }
@@ -180,6 +204,12 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
                         break;
                     case 'get_stack_frames':
                         me.processGetStackFramesResponse(
+                            response.success,
+                            response.data
+                        );
+                        break;
+                    case 'get_exception_info':
+                        me.processGetExceptionInfoResponse(
                             response.success,
                             response.data
                         );
@@ -247,12 +277,47 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
         }
     }
 
+    public updateExceptionBreakpoints(
+        breakpoints: DebugProtocol.SetExceptionBreakpointsArguments
+    ) {
+        let actionList = {} as { [filter: string]: 'dbstop' | 'dbclear' };
+        actionList['errors'] = 'dbclear';
+        actionList['caughterrors'] = 'dbclear';
+        actionList['warnings'] = 'dbclear';
+
+        breakpoints.filters.forEach(
+            (filter, index) => {
+                actionList[filter] = 'dbstop';
+            }
+        );
+
+        if (this._pyshell !== undefined) {
+            this._pyshell.send(
+                {
+                    command: 'update_exception_breakpoints',
+                    args: actionList
+                } as adaptorCommand
+            );
+        }
+    }
+
     public getStackTrace(
         response: DebugProtocol.StackTraceResponse
     ) {
         if (this._pyshell !== undefined) {
             this._pyshell.send({
                 command: 'get_stack_frames',
+                args: response
+            } as adaptorCommand);
+        }
+    }
+
+    public getExceptionInfo(
+        response: DebugProtocol.ExceptionInfoResponse
+    ) {
+        if (this._pyshell !== undefined) {
+            this._pyshell.send({
+                command: 'get_exception_info',
                 args: response
             } as adaptorCommand);
         }
@@ -314,7 +379,11 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
 
     public terminate() {
         if (this._pyshell !== undefined) {
-            this._pyshell.end(() => { });
+            this._pyshell.send({
+                command: 'terminate',
+                args: {}
+            } as adaptorCommand);
+            this._pyshell.terminate();
         }
     }
 }

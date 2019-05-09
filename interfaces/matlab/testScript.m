@@ -1,6 +1,6 @@
 % This is a long execution test script
 
-timeOut = 20;
+timeOut = 120;
 
 tic;
 
@@ -11,4 +11,12 @@ while toc <= timeOut
     disp(x);
     y = str2double('0.555');
     pause(1);
+    try
+        str2double();
+    catch e
+        if x > 1
+            warning('some warning message')
+            rethrow(e);
+        end
+    end
 end

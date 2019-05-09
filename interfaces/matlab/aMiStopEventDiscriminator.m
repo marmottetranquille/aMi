@@ -1,4 +1,4 @@
-function aMiStopEventDiscriminator()
+function aMiStopEventDiscriminator(stopOnWarnings)
 
 stackFrames = dbstack(1);
 
@@ -12,6 +12,28 @@ frameLine = stackFrames(1).line;
 
 breakpoints = dbstatus;
 
+lastError = lasterror;
+if stopOnWarnings
+    lastWarning = lastwarn;
+else
+    lastWarning = '';
+end
+
+sendErrorReason = ~isempty(lastError.message) | ~isempty(lastWarning);
+
+if sendErrorReason
+    if ~isempty(lastError.message)
+        errorReason = lastError.message;
+    else
+        errorReason = lastWarning;
+    end
+    errorMessage ='"reason": "exception"';
+    errorText = ['"text": "', errorReason, '"'];
+    errorMessage =  ['{', errorMessage, ', ', replace10(errorText) '}'];
+    disp(errorMessage);
+    return
+end
+
 for index = 1:numel(breakpoints)
     if strcmp(frameName, breakpoints(index).name) && ...
        frameLine == breakpoints(index).line
@@ -21,3 +43,5 @@ for index = 1:numel(breakpoints)
 end
 
 disp('{"reason": "step"}');
+
+end
