@@ -54,6 +54,7 @@ command_input_log_file = None
 execute_input_event_emitter = False
 input_event_log = None
 stop_on_warnings = False
+terminate_loops = False
 
 async def input_event_emitter():
     global command_input_log_file
@@ -62,6 +63,7 @@ async def input_event_emitter():
     global log_python_adaptor
     global stop_on_warnings
     global input_event_log
+    global terminate_loops
     import time
     from io import StringIO
 
@@ -72,7 +74,7 @@ async def input_event_emitter():
 
     old_size = 0
 
-    while True:
+    while not terminate_loops:
         if execute_input_event_emitter:
             if old_size == 0:
                 old_size = os.stat(command_input_log_file).st_size
@@ -352,6 +354,14 @@ def dbquit(args):
                       data={'args': args})
 
 
+def terminate(args):
+    global terminate_loops
+    terminate_loops = True
+
+    loop = asyncio.get_event_loop()
+    loop.stop()
+
+
 def ping(args):
     return_vscode(message_type='response',
                   command='ping',
@@ -372,6 +382,7 @@ COMMANDS = {
     'step_in': step_in,
     'step_out': step_out,
     'dbquit': dbquit,
+    'terminate': terminate,
     'ping': ping
 }
 
@@ -392,7 +403,8 @@ def process_line(line):
 
 
 async def adaptor_listner():
-    while True:
+    global terminate_loops
+    while not terminate_loops:
         if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
             line = sys.stdin.readline()
             try:
@@ -432,4 +444,6 @@ if __name__ == '__main__':
     asyncio.ensure_future(adaptor_listner(), loop=loop)
     asyncio.ensure_future(input_event_emitter(), loop=loop)
 
-    loop.run_forever()
+    loop.run_until_complete(loop.create_future())
+
+    # loop.run_forever()

@@ -46,6 +46,7 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
 
         response.body.supportsConfigurationDoneRequest = true;
         response.body.supportsRestartRequest = true;
+        response.body.supportsTerminateRequest = true;
         response.body.supportsExceptionOptions = true;
         response.body.supportsExceptionInfoRequest = false;
 

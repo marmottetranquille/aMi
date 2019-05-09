@@ -17,7 +17,8 @@ type command =
     'step_out' |
     'dbquit' |
     'input_event_emitter' |
-    'ping';
+    'ping' |
+    'terminate';
 
 type adaptorResponse = {
     message_type: 'response' | 'error' | 'info',
@@ -378,7 +379,11 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
 
     public terminate() {
         if (this._pyshell !== undefined) {
-            this._pyshell.end(() => { });
+            this._pyshell.send({
+                command: 'terminate',
+                args: {}
+            } as adaptorCommand);
+            this._pyshell.terminate();
         }
     }
 }
