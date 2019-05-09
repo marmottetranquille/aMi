@@ -15,8 +15,8 @@ while toc <= timeOut
         str2double();
     catch e
         if x > 1
+            warning('some warning message')
             error(e);
         end
     end
-    % warning('some warning message')
 end
