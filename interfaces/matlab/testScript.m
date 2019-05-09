@@ -16,7 +16,7 @@ while toc <= timeOut
     catch e
         if x > 1
             warning('some warning message')
-            error(e);
+            rethrow(e);
         end
     end
 end

@@ -47,19 +47,19 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         response.body.supportsConfigurationDoneRequest = true;
         response.body.supportsRestartRequest = true;
         response.body.supportsExceptionOptions = true;
-        response.body.supportsExceptionInfoRequest = true;
+        response.body.supportsExceptionInfoRequest = false;
 
         let exceptionFilters = new Array<DebugProtocol.ExceptionBreakpointsFilter>();
         exceptionFilters.push(
             {
                 filter: 'errors',
                 label: 'Errors',
-                default: false
+                default: true
             } as DebugProtocol.ExceptionBreakpointsFilter
         );
         exceptionFilters.push(
             {
-                filter: 'caughtErrors',
+                filter: 'caughterrors',
                 label: 'Caught Errors'
             } as DebugProtocol.ExceptionBreakpointsFilter
         );
@@ -313,7 +313,6 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
     ) {
         response.body = response.body || {};
         this._runtime.getExceptionInfo(response);
-        this.sendResponse(response);
     }
 
     protected async terminateRequest(

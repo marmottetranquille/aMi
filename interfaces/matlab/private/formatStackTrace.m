@@ -34,5 +34,5 @@ function formatedStackTrace = formatStackTrace(stack, option)
     end
 
     if strcmpi(option, 'flat')
-        formatedStackTrace = 'not implemented';
+        formatedStackTrace = '"not implemented"';
     end

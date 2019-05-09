@@ -8,7 +8,7 @@ import asyncio
 import select
 
 
-log_python_adaptor = True
+log_python_adaptor = False
 
 
 def return_vscode(message_type=None,
@@ -16,6 +16,10 @@ def return_vscode(message_type=None,
                   command=None,
                   message=None,
                   data=None):
+
+    global log_python_adaptor
+    global output_log
+
     if message_type is None:
         message_type = 'response'
 
@@ -36,6 +40,10 @@ def return_vscode(message_type=None,
                                    'command': command,
                                    'message': message,
                                    'data': data})
+
+    if log_python_adaptor:
+            output_log.write(returned_message + '\n')
+            output_log.flush()
 
     sys.stdout.write(returned_message + '\n')
     sys.stdout.flush()
@@ -261,9 +269,8 @@ def get_exception_info(args):
     m_stderr = StringIO()
 
     # MException.last can only be called from command prompt...
-    engine.eval('aMiException = MException.last',
-                nargout=0
-                )
+    engine.evalin('base', 'aMiException = MException.last',
+                  nargout=0)
 
     engine.aMiGetExceptionInfo(
         nargout=0,
@@ -407,14 +414,17 @@ async def adaptor_listner():
 if __name__ == '__main__':
 
     global input_log
+    global output_log
+
+    if log_python_adaptor:
+        input_log = open('/tmp/aMiInput.log', 'a+')
+        output_log = open('/tmp/aMiOutput.log', 'w+')
+
     return_vscode(message_type='info',
                   command=None,
                   success=True,
                   message=str(sys.version),
                   data={})
-
-    if log_python_adaptor:
-        input_log = open('/tmp/aMiInput.log', 'a+')
 
     loop = asyncio.get_event_loop_policy().new_event_loop()
     asyncio.set_event_loop(loop)

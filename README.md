@@ -150,6 +150,10 @@ breakpoints: re start debug adaptor and remove all breakpoints, or
 alternatively enter `dbclear all` in the Matlab command window.
 * Some error messages in the command window are printed incorrectly.
 * Debugging files not in path (run file in place) does not work.
+* First undefined variable or function error in the command window catches
+Matlab internal errors if `Caught Errors` option is set.
+* Showing error information in the source file display does not work (yet).
+Error/warning info is therefore only available in the terminal command window.
 
 ## Release Notes Version 0.3.1
 * Solved [issue #33](https://github.com/marmottetranquille/aMi/issues/33).

@@ -1,9 +1,6 @@
 import * as pyshell from 'python-shell';
 import * as events from 'events';
 import { DebugProtocol } from 'vscode-debugprotocol';
-import { emit } from 'cluster';
-import { RelativePattern, DebugConfigurationProvider } from 'vscode';
-import { Response } from 'vscode-debugadapter';
 
 
 type command =
