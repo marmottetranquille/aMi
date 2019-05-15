@@ -11,6 +11,7 @@ while toc <= timeOut
     disp(x);
     y = str2double('0.555');
     pause(1);
+    keyboard;
     try
         str2double();
     catch e

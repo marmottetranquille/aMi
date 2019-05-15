@@ -9,6 +9,7 @@ type command =
     'update_breakpoints' |
     'update_exception_breakpoints' |
     'get_stack_frames' |
+    'get_scopes' |
     'get_exception_info' |
     'pause' |
     'continue' |
@@ -144,6 +145,15 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
         this.emit('stackTraceResponse', response);
     }
 
+    public processScopesResponse(
+        success: boolean,
+        data: {
+            response: DebugProtocol.ScopesResponse
+        }
+    ) {
+        this.emit('scopesResponse', data.response);
+    }
+
     public processGetExceptionInfoResponse(
         success: boolean,
         data: {
@@ -205,6 +215,12 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
                     case 'get_stack_frames':
                         me.processGetStackFramesResponse(
                             response.success,
+                            response.data
+                        );
+                        break;
+                    case 'get_scopes':
+                        me.processScopesResponse(
+                            true,
                             response.data
                         );
                         break;
@@ -307,6 +323,17 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
         if (this._pyshell !== undefined) {
             this._pyshell.send({
                 command: 'get_stack_frames',
+                args: response
+            } as adaptorCommand);
+        }
+    }
+
+    public getScopes(
+        response: DebugProtocol.ScopesResponse
+    ) {
+        if (this._pyshell !== undefined) {
+            this._pyshell.send({
+                command: 'get_scopes',
                 args: response
             } as adaptorCommand);
         }

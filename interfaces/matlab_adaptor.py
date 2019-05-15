@@ -262,6 +262,31 @@ def get_stack_frames(args):
                       data={'args': args})
 
 
+def get_scopes(args):
+    from io import StringIO
+    global engine
+    m_stdout = StringIO()
+    m_stderr = StringIO()
+    try:
+        response = args
+        engine.aMiGetScopes(nargout=0,
+                            stdout=m_stdout,
+                            stderr=m_stderr)
+        scopes = m_stdout.getvalue()
+        response[u'body'][u'scopes'] = json.loads(scopes)
+        return_vscode(message_type='info',
+                      command='get_scopes',
+                      success=True,
+                      message=scopes)
+        return_vscode(message_type='response',
+                      command='get_scopes',
+                      success=True,
+                      message='',
+                      data={'response': response})
+    except MatlabEngineError as error:
+        pass
+
+
 def get_exception_info(args):
     from io import StringIO
     global engine
@@ -376,6 +401,7 @@ COMMANDS = {
     'update_breakpoints': update_breakpoints,
     'update_exception_breakpoints': update_exception_breakpoints,
     'get_stack_frames': get_stack_frames,
+    'get_scopes': get_scopes,
     'get_exception_info': get_exception_info,
     'continue': dbcont,
     'step': step,
