@@ -1,6 +1,7 @@
 import * as pyshell from 'python-shell';
 import * as events from 'events';
 import { DebugProtocol } from 'vscode-debugprotocol';
+import * as DebugAdapter from 'vscode-debugadapter';
 
 
 type command =
@@ -10,6 +11,7 @@ type command =
     'update_exception_breakpoints' |
     'get_stack_frames' |
     'get_scopes' |
+    'get_variables' |
     'get_exception_info' |
     'pause' |
     'continue' |
@@ -148,10 +150,41 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
     public processScopesResponse(
         success: boolean,
         data: {
-            response: DebugProtocol.ScopesResponse
+            response: DebugProtocol.ScopesResponse,
+            scopes: [{name: string}]
         }
     ) {
+        data.response.body = data.response.body || {};
+        data.response.body.scopes = new Array<DebugAdapter.Scope>();
+
+        let scopeReferences: { [scope: string]: number };
+        scopeReferences = { local: 0.1, caller: 0.2, global: 0.3 };
+
+        data.scopes.forEach(
+            (scope) => {
+                data.response.body.scopes.push(
+                    new DebugAdapter.Scope(
+                        scope.name,
+                        scopeReferences[scope.name]
+                    )
+                );
+            }
+        );
+
         this.emit('scopesResponse', data.response);
+    }
+
+    public processVariablesResponse(
+        success: boolean,
+        data: {
+            response: DebugProtocol.VariablesResponse,
+            variables: Array<DebugAdapter.Variable>
+        }
+    ) {
+        let response = data.response;
+        response.body.variables = data.variables;
+
+        this.emit('variablesResponse', response);
     }
 
     public processGetExceptionInfoResponse(
@@ -220,6 +253,12 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
                         break;
                     case 'get_scopes':
                         me.processScopesResponse(
+                            true,
+                            response.data
+                        );
+                        break;
+                    case 'get_variables':
+                        me.processVariablesResponse(
                             true,
                             response.data
                         );
@@ -335,6 +374,21 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
             this._pyshell.send({
                 command: 'get_scopes',
                 args: response
+            } as adaptorCommand);
+        }
+    }
+
+    public getVariables(
+        args: DebugProtocol.VariablesArguments,
+        response: DebugProtocol.VariablesResponse
+    ) {
+        if (this._pyshell !== undefined) {
+            this._pyshell.send({
+                command: 'get_variables',
+                args: {
+                    request_args: args,
+                    response: response
+                }
             } as adaptorCommand);
         }
     }

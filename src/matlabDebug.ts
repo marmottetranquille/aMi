@@ -118,6 +118,14 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         );
 
         this._runtime.on(
+            'variablesResponse',
+            (response: DebugProtocol.VariablesResponse) => {
+                console.log(response);
+                this.sendResponse(response);
+            }
+        );
+
+        this._runtime.on(
             'exceptionInfoResponse',
             (response: DebugProtocol.ExceptionInfoResponse) => {
                 console.log(response);
@@ -220,9 +228,6 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         response.body.scopes = new Array<DebugAdapter.Scope>();
 
         this._runtime.getScopes(response);
-        
-        //console.log(response);
-        //this.sendResponse(response);
     }
 
     protected async variablesRequest(
@@ -232,7 +237,8 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         response.body = response.body || {};
         response.body.variables = new Array<DebugAdapter.Variable>();
 
-        console.log(response);
+        this._runtime.getVariables(args, response);
+
         this.sendResponse(response);
     }
 

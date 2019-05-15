@@ -272,8 +272,7 @@ def get_scopes(args):
         engine.aMiGetScopes(nargout=0,
                             stdout=m_stdout,
                             stderr=m_stderr)
-        scopes = m_stdout.getvalue()
-        response[u'body'][u'scopes'] = json.loads(scopes)
+        scopes = json.loads(m_stdout.getvalue())
         return_vscode(message_type='info',
                       command='get_scopes',
                       success=True,
@@ -282,9 +281,73 @@ def get_scopes(args):
                       command='get_scopes',
                       success=True,
                       message='',
-                      data={'response': response})
+                      data={'scopes': scopes,
+                            'response': response})
     except MatlabEngineError as error:
         pass
+
+
+def get_variables(args):
+    from math import floor, fmod
+    global engine
+
+    request_args = args[u'request_args']
+
+    var_ref = request_args[u'variablesReference']
+    scope = round(fmod(var_ref, 1) * 10)
+
+    def eval_in_local(statement):
+        return engine.eval(statement)
+
+    def eval_in_caller(statement):
+        return engine.evalin('caller', statement)
+
+    def eval_in_base(statement):
+        return engine.evalin('base', statement)
+
+    if scope == 1:
+        eval_in_scope = eval_in_local
+    elif scope == 2:
+        eval_in_scope = eval_in_caller
+    elif scope == 3:
+        eval_in_scope = eval_in_base
+
+    var_ref = round(var_ref - fmod(var_ref, 1))
+
+    variables = []
+
+    if var_ref == 0:
+        variable_names = eval_in_scope('who;')
+
+        for name in variable_names:
+            variable_class = eval_in_scope('class(' + name + ');')
+            variable_is_numeric = eval_in_scope('isnumeric(' + name + ');')
+            variable_is_array = eval_in_scope('numel(' + name + ') ~= 1;')
+            if variable_is_numeric and not variable_is_array:
+                variable_value = eval_in_scope('num2str(' + name + ');')
+            elif variable_is_array:
+                variable_value = 'array of size [' + \
+                                 eval_in_scope('num2str(size(' +
+                                               name + '));') + \
+                                 ']'
+            else:
+                variable_value = 'can\'t evaluate'
+
+            variables.append(
+                {
+                    'name': name,
+                    'value': variable_value,
+                    'type': variable_class,
+                    'variablesReference': 0
+                }
+            )
+
+    return_vscode(message_type='response',
+                  command='get_variables',
+                  success=True,
+                  message='',
+                  data={'response': args[u'response'],
+                        'variables': variables})
 
 
 def get_exception_info(args):
@@ -402,6 +465,7 @@ COMMANDS = {
     'update_exception_breakpoints': update_exception_breakpoints,
     'get_stack_frames': get_stack_frames,
     'get_scopes': get_scopes,
+    'get_variables': get_variables,
     'get_exception_info': get_exception_info,
     'continue': dbcont,
     'step': step,
