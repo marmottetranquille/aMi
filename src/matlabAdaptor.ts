@@ -178,13 +178,17 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
         success: boolean,
         data: {
             response: DebugProtocol.VariablesResponse,
-            variables: Array<DebugAdapter.Variable>
+            variables: Array<DebugProtocol.Variable>
         }
     ) {
         let response = data.response;
-        response.body.variables = data.variables;
+        response.body = {
+            variables: data.variables
+        };
 
+        console.log(response)
         this.emit('variablesResponse', response);
+
     }
 
     public processGetExceptionInfoResponse(

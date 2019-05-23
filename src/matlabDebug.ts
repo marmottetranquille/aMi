@@ -238,8 +238,6 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         response.body.variables = new Array<DebugAdapter.Variable>();
 
         this._runtime.getVariables(args, response);
-
-        this.sendResponse(response);
     }
 
     protected async pauseRequest(
