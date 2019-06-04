@@ -6,6 +6,12 @@ All notable changes to the "aMi" extension will be documented in this file.
 
 - See [README](README.md)
 
+## [0.4.1] 2019-06-04
+
+### Fixed
+
+- Issue #44: Pointless "remote control" error message when starting Matlab.
+
 ## [0.4.0] 2019-05-10
 
 ### Added
