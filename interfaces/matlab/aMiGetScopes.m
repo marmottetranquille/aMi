@@ -12,7 +12,7 @@ end
 if numel(stack) > 1
     message = [message, ...
                '{"name": "caller"}, '];
-end 
+end
 
 message = [message, ...
            '{"name": "global"}]'];

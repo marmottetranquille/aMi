@@ -287,9 +287,17 @@ def get_scopes(args):
         pass
 
 
+variables_dict = {
+    1: {},
+    2: {},
+    3: {}
+}
+
+
 def get_variables(args):
     from math import floor, fmod
     global engine
+    global variables_dict
 
     request_args = args[u'request_args']
 
@@ -317,7 +325,10 @@ def get_variables(args):
     variables = []
 
     if var_ref == 0:
+
         variable_names = eval_in_scope('who;')
+
+        variables_dict[scope] = {}
 
         for name in variable_names:
             variable_class = eval_in_scope('class(' + name + ');')
@@ -325,20 +336,23 @@ def get_variables(args):
             variable_is_array = eval_in_scope('numel(' + name + ') ~= 1;')
             if variable_is_numeric and not variable_is_array:
                 variable_value = eval_in_scope('num2str(' + name + ');')
+                variable_reference = 0
             elif variable_is_array:
                 variable_value = 'array of size [' + \
                                  eval_in_scope('num2str(size(' +
                                                name + '));') + \
                                  ']'
+                variable_reference = 0
             else:
-                variable_value = 'can\'t evaluate'
+                variable_value = variable_class
+                variable_reference = 0
 
             variables.append(
                 {
                     'name': name,
                     'value': variable_value,
                     'type': variable_class,
-                    'variablesReference': 0
+                    'variablesReference': variable_reference
                 }
             )
 

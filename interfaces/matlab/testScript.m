@@ -1,3 +1,5 @@
+function testScript()
+
 % This is a long execution test script
 
 timeOut = 120;
