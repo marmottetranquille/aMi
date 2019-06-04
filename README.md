@@ -155,5 +155,6 @@ Matlab internal errors if `Caught Errors` option is set.
 * Showing error information in the source file display does not work (yet).
 Error/warning info is therefore only available in the terminal command window.
 
-## Release Notes Version 0.3.1
-* Solved [issue #33](https://github.com/marmottetranquille/aMi/issues/33).
+## Release Notes Version 0.4.1
+
+* Solved [issue #44](https://github.com/marmottetranquille/aMi/issues/44).
