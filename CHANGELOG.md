@@ -6,7 +6,7 @@ All notable changes to the "aMi" extension will be documented in this file.
 
 - See [README](README.md)
 
-## [0.4.1] 2019-06-06
+## [0.4.1] 2019-06-04
 
 ### Fixed
 
