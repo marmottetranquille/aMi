@@ -382,16 +382,6 @@ export function activate(context: vscode.ExtensionContext) {
 			'matlab_terminal_id',
 			matlab_terminal.processId);
 
-		// Find where matlab is installed
-		const { exec } = require('child_process');
-		exec('realpath \`which matlab\`', (err: any, stdout: string, stderr: string) => {
-			if (err) {
-				vscode.window.showErrorMessage('Matlab remote control can not be initiated.');
-				return;
-			}
-			let matlab_root = stdout.slice(0, -'/bin/matlab'.length - 1);
-		});
-
 		// Monitor startup
 		matlab_callback(
 			context,
