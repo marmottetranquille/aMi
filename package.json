@@ -51,7 +51,7 @@
 		},
 		{
 			"command": "aMi.startDebugAdaptor",
-			"title": "Start debug adaptor",
+			"title": "Start Matlab debug adaptor",
 			"category": "aMi"
 		}],
 		"menus": {
