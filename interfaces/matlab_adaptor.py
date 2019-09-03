@@ -338,10 +338,21 @@ def get_variables(args):
                 variable_value = eval_in_scope('num2str(' + name + ');')
                 variable_reference = 0
             elif variable_is_array:
-                variable_value = 'array of size [' + \
-                                 eval_in_scope('num2str(size(' +
-                                               name + '));') + \
-                                 ']'
+                if variable_class == 'char' and \
+                   eval_in_scope('isrow(' + name + ');'):
+                        variable_value = "'" + eval_in_scope(name) + "'"
+                        variable_reference = 0
+                else:
+                    variable_value = variable_class + ' array of size [' + \
+                                     eval_in_scope('num2str(size(' +
+                                                   name + '));') + \
+                                     ']'
+                    variable_reference = 0
+            elif variable_class == 'string':
+                variable_value = '"' + eval_in_scope(name + ';') + '"'
+                variable_reference = 0
+            elif variable_class == 'function_handle':
+                variable_value = '@' + eval_in_scope('func2str(' + name + ');')
                 variable_reference = 0
             else:
                 variable_value = variable_class
