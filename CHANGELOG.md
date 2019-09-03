@@ -6,6 +6,13 @@ All notable changes to the "aMi" extension will be documented in this file.
 
 - See [README](README.md)
 
+## [0.5.0] 2019-09-04
+
+### Added
+
+- Basic workspace explorer. Only scalars or char rows detailed; all others only
+  display their class.
+
 ## [0.4.1] 2019-06-04
 
 ### Fixed

@@ -4,7 +4,7 @@
 	"displayName": "aMi",
 	"description": "alternative Matlab ide",
 	"icon": "images/aMi128.png",
-	"version": "0.4.1",
+	"version": "0.5.0",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/marmottetranquille/aMi.git"
@@ -51,7 +51,7 @@
 		},
 		{
 			"command": "aMi.startDebugAdaptor",
-			"title": "Start debug adaptor",
+			"title": "Start Matlab debug adaptor",
 			"category": "aMi"
 		}],
 		"menus": {

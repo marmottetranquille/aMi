@@ -262,6 +262,119 @@ def get_stack_frames(args):
                       data={'args': args})
 
 
+def get_scopes(args):
+    from io import StringIO
+    global engine
+    m_stdout = StringIO()
+    m_stderr = StringIO()
+    try:
+        response = args
+        engine.aMiGetScopes(nargout=0,
+                            stdout=m_stdout,
+                            stderr=m_stderr)
+        scopes = json.loads(m_stdout.getvalue())
+        return_vscode(message_type='info',
+                      command='get_scopes',
+                      success=True,
+                      message=scopes)
+        return_vscode(message_type='response',
+                      command='get_scopes',
+                      success=True,
+                      message='',
+                      data={'scopes': scopes,
+                            'response': response})
+    except MatlabEngineError as error:
+        pass
+
+
+variables_dict = {
+    1: {},
+    2: {},
+    3: {}
+}
+
+
+def get_variables(args):
+    from math import floor, fmod
+    global engine
+    global variables_dict
+
+    request_args = args[u'request_args']
+
+    var_ref = request_args[u'variablesReference']
+    scope = round(fmod(var_ref, 1) * 10)
+
+    def eval_in_local(statement):
+        return engine.eval(statement)
+
+    def eval_in_caller(statement):
+        return engine.evalin('caller', statement)
+
+    def eval_in_base(statement):
+        return engine.evalin('base', statement)
+
+    if scope == 1:
+        eval_in_scope = eval_in_local
+    elif scope == 2:
+        eval_in_scope = eval_in_caller
+    elif scope == 3:
+        eval_in_scope = eval_in_base
+
+    var_ref = round(var_ref - fmod(var_ref, 1))
+
+    variables = []
+
+    if var_ref == 0:
+
+        variable_names = eval_in_scope('who;')
+
+        variables_dict[scope] = {}
+
+        for name in variable_names:
+            variable_class = eval_in_scope('class(' + name + ');')
+            variable_is_numeric = eval_in_scope('isnumeric(' + name + ');')
+            variable_is_array = eval_in_scope('numel(' + name + ') ~= 1;')
+            if variable_is_numeric and not variable_is_array:
+                variable_value = eval_in_scope('num2str(' + name + ');')
+                variable_reference = 0
+            elif variable_is_array:
+                if variable_class == 'char' and \
+                   eval_in_scope('isrow(' + name + ');'):
+                        variable_value = "'" + eval_in_scope(name) + "'"
+                        variable_reference = 0
+                else:
+                    variable_value = variable_class + ' array of size [' + \
+                                     eval_in_scope('num2str(size(' +
+                                                   name + '));') + \
+                                     ']'
+                    variable_reference = 0
+            elif variable_class == 'string':
+                variable_value = '"' + eval_in_scope(name + ';') + '"'
+                variable_reference = 0
+            elif variable_class == 'function_handle':
+                variable_value = '@' + eval_in_scope('func2str(' + name + ');')
+                variable_reference = 0
+            else:
+                variable_value = variable_class
+                variable_reference = 0
+
+            variables.append(
+                {
+                    'name': name,
+                    'value': variable_value,
+                    'type': variable_class,
+                    'variablesReference': variable_reference
+                }
+            )
+
+    return_vscode(message_type='response',
+                  command='get_variables',
+                  success=True,
+                  message='',
+                  data={'response': args[u'response'],
+                        'variables': variables})
+
+
 def get_exception_info(args):
     from io import StringIO
     global engine
@@ -376,6 +489,8 @@ COMMANDS = {
     'update_breakpoints': update_breakpoints,
     'update_exception_breakpoints': update_exception_breakpoints,
     'get_stack_frames': get_stack_frames,
+    'get_scopes': get_scopes,
+    'get_variables': get_variables,
     'get_exception_info': get_exception_info,
     'continue': dbcont,
     'step': step,

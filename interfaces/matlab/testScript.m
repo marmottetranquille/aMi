@@ -1,3 +1,5 @@
+function testScript()
+
 % This is a long execution test script
 
 timeOut = 120;
@@ -11,6 +13,7 @@ while toc <= timeOut
     disp(x);
     y = str2double('0.555');
     pause(1);
+    keyboard;
     try
         str2double();
     catch e
