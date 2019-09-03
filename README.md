@@ -10,7 +10,7 @@ the Feature section bellow.
 
 This extension is intended for Linux users (so most should work on MacOS).
 
-**Current version 0.4.0**.
+**Current version 0.5.0**.
 
 ## What this extension is not about
 
@@ -134,6 +134,10 @@ None for now.
 
 ## Known Issues
 
+* Conda environments can preclude this extension to work properly. It will not
+work for instance if you have installed a recent Anaconda (using now Python3.7)
+and let the installer initialize your .bashrc file. To work this around, create
+an environment compatible with this extension and start VSCode from that one.
 * Shared session of Matlab can not be stopped cleanly from the Python API. The
   error raised at exit is simply ignored.
 * Command history is lost when VSCode is closed before using `aMi: Stop Matlab`
@@ -154,7 +158,14 @@ alternatively enter `dbclear all` in the Matlab command window.
 Matlab internal errors if `Caught Errors` option is set.
 * Showing error information in the source file display does not work (yet).
 Error/warning info is therefore only available in the terminal command window.
+* After an exception has been caught, the call stack will read stopped on
+exception until user enters `MException.last('reset')` in the terminal command
+window.
 
-## Release Notes Version 0.4.1
+## Release Notes Version 0.5.0
 
-* Solved [issue #44](https://github.com/marmottetranquille/aMi/issues/44).
+* When debug adaptor is started, variables of the selected stack workspace are
+now displayed in the variables tab of the debug pane.
+* For release 0.5.0 the only types displaying value details are numerical and
+string scalars and char rows. Remaining types will be added in upcoming
+upgrades of version 0.5.
