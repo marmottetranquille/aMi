@@ -315,7 +315,7 @@ def get_variable(name, scope, eval_in_scope, variables):
                              ']'
             variable_reference = variables_dict[scope]['ref_count']
             variables_dict[scope][variable_reference] = {'name': name,
-                                                         'type': 'array_root'}
+                                                         'type': 'array'}
             variable_reference += scope/10
             variables_dict[scope]['ref_count'] += 1
             variable_presentation_hint = {'kind': 'data'}
@@ -385,6 +385,34 @@ def get_variables(args):
                       message='referenced variable request',
                       data={'args': args,
                             'var_dict': variables_dict})
+
+        var_details = variables_dict[scope][var_ref]
+        name = var_details['name']
+
+        if var_details['type'] == 'array':
+            from io import StringIO
+            global engine
+            m_stdout = StringIO()
+            m_stderr = StringIO()
+            array_res = 10
+            engine.aMiGetArraySize(name,
+                                   nargout=0,
+                                   stdout=m_stdout,
+                                   stderr=m_stderr)
+            size_var = json.loads(m_stdout.getvalue())
+            numel_var = eval_in_scope('numel(' + name + ');')
+            len_size_var = len(size_var)
+            for index in range(int(numel_var)):
+                get_variable(name + '({})'.format(index + 1),
+                             scope, eval_in_scope,
+                             variables)
+
+            return_vscode(message_type='info',
+                          command='get_variables',
+                          success=True,
+                          message='array variable request',
+                          data={'name': name,
+                                'var_size': size_var})
 
     return_vscode(message_type='response',
                   command='get_variables',
@@ -559,7 +587,8 @@ async def adaptor_listner():
                     command='none',
                     success=False,
                     message='Unexpected error during command processing',
-                    data={'command_line': line})
+                    data={'command_line': line,
+                          'error': str(e)})
         else:
             await asyncio.sleep(0.01)
 
