@@ -294,8 +294,53 @@ variables_dict = {
 }
 
 
+def get_variable(name, scope, eval_in_scope, variables):
+
+    variable_class = eval_in_scope('class(' + name + ');')
+    variable_is_numeric = eval_in_scope('isnumeric(' + name + ');')
+    variable_is_array = eval_in_scope('numel(' + name + ') ~= 1;')
+    if variable_is_numeric and not variable_is_array:
+        variable_value = eval_in_scope('num2str(' + name + ');')
+        variable_reference = 0
+        variable_presentation_hint = {'kind': 'data'}
+    elif variable_is_array:
+        if variable_class == 'char' and \
+           eval_in_scope('isrow(' + name + ');'):
+            variable_value = "'" + eval_in_scope(name) + "'"
+            variable_reference = 0
+            variable_presentation_hint = {'kind': 'data'}
+        else:
+            variable_value = variable_class + ' array of size [' + \
+                             eval_in_scope('num2str(size(' + name + '));') + \
+                             ']'
+            variable_reference = variables_dict[scope]['ref_count']
+            variables_dict[scope][variable_reference] = {'name': name,
+                                                         'type': 'array_root'}
+            variable_reference += scope/10
+            variables_dict[scope]['ref_count'] += 1
+            variable_presentation_hint = {'kind': 'data'}
+    elif variable_class == 'string':
+        variable_value = '"' + eval_in_scope(name + ';') + '"'
+        variable_reference = 0
+        variable_presentation_hint = {'kind': 'data'}
+    elif variable_class == 'function_handle':
+        variable_value = '@' + eval_in_scope('func2str(' + name + ');')
+        variable_reference = 0
+        variable_presentation_hint = {'kind': 'method'}
+    else:
+        variable_value = variable_class
+        variable_reference = 0
+        variable_presentation_hint = {'kind': 'class'}
+
+    variables.append({'name': name,
+                      'value': variable_value,
+                      'type': variable_class,
+                      'presentationHit': variable_presentation_hint,
+                      'variablesReference': variable_reference})
+
+
 def get_variables(args):
-    from math import floor, fmod
+    from math import fmod
     global engine
     global variables_dict
 
@@ -331,52 +376,8 @@ def get_variables(args):
         variables_dict[scope] = {'ref_count': 1}
 
         for name in variable_names:
-            variable_class = eval_in_scope('class(' + name + ');')
-            variable_is_numeric = eval_in_scope('isnumeric(' + name + ');')
-            variable_is_array = eval_in_scope('numel(' + name + ') ~= 1;')
-            if variable_is_numeric and not variable_is_array:
-                variable_value = eval_in_scope('num2str(' + name + ');')
-                variable_reference = 0
-                variable_presentation_hint = {'kind': 'data'}
-            elif variable_is_array:
-                if variable_class == 'char' and \
-                   eval_in_scope('isrow(' + name + ');'):
-                    variable_value = "'" + eval_in_scope(name) + "'"
-                    variable_reference = 0
-                    variable_presentation_hint = {'kind': 'data'}
-                else:
-                    variable_value = variable_class + ' array of size [' + \
-                                     eval_in_scope('num2str(size(' +
-                                                   name + '));') + \
-                                     ']'
-                    variable_reference = variables_dict[scope]['ref_count']
-                    variables_dict[scope][variable_reference] = {'name': name,
-                                                                 'type': 'array_root'}
-                    variable_reference += scope/10
-                    variables_dict[scope]['ref_count'] += 1
-                    variable_presentation_hint = {'kind': 'data'}
-            elif variable_class == 'string':
-                variable_value = '"' + eval_in_scope(name + ';') + '"'
-                variable_reference = 0
-                variable_presentation_hint = {'kind': 'data'}
-            elif variable_class == 'function_handle':
-                variable_value = '@' + eval_in_scope('func2str(' + name + ');')
-                variable_reference = 0
-                variable_presentation_hint = {'kind': 'method'}
-            else:
-                variable_value = variable_class
-                variable_reference = 0
-                variable_presentation_hint = {'kind': 'class'}
+            get_variable(name, scope, eval_in_scope, variables)
 
-            variables.append(
-                {
-                    'name': name,
-                    'value': variable_value,
-                    'type': variable_class,
-                    'presentationHit': variable_presentation_hint,
-                    'variablesReference': variable_reference
-                }
-            )
     else:
         return_vscode(message_type='info',
                       command='get_variables',
