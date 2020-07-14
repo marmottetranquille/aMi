@@ -186,7 +186,7 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
             variables: data.variables
         };
 
-        console.log(response)
+        console.log(response);
         this.emit('variablesResponse', response);
 
     }
@@ -372,6 +372,7 @@ export class MatlabRuntimeAdaptor extends events.EventEmitter  {
     }
 
     public getScopes(
+        args: DebugProtocol.ScopesArguments,
         response: DebugProtocol.ScopesResponse
     ) {
         if (this._pyshell !== undefined) {

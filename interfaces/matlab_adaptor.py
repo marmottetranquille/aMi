@@ -328,7 +328,7 @@ def get_variables(args):
 
         variable_names = eval_in_scope('who;')
 
-        variables_dict[scope] = {}
+        variables_dict[scope] = {'ref_count': 1}
 
         for name in variable_names:
             variable_class = eval_in_scope('class(' + name + ');')
@@ -337,35 +337,53 @@ def get_variables(args):
             if variable_is_numeric and not variable_is_array:
                 variable_value = eval_in_scope('num2str(' + name + ');')
                 variable_reference = 0
+                variable_presentation_hint = {'kind': 'data'}
             elif variable_is_array:
                 if variable_class == 'char' and \
                    eval_in_scope('isrow(' + name + ');'):
-                        variable_value = "'" + eval_in_scope(name) + "'"
-                        variable_reference = 0
+                    variable_value = "'" + eval_in_scope(name) + "'"
+                    variable_reference = 0
+                    variable_presentation_hint = {'kind': 'data'}
                 else:
                     variable_value = variable_class + ' array of size [' + \
                                      eval_in_scope('num2str(size(' +
                                                    name + '));') + \
                                      ']'
-                    variable_reference = 0
+                    variable_reference = variables_dict[scope]['ref_count']
+                    variables_dict[scope][variable_reference] = {'name': name,
+                                                                 'type': 'array_root'}
+                    variable_reference += scope/10
+                    variables_dict[scope]['ref_count'] += 1
+                    variable_presentation_hint = {'kind': 'data'}
             elif variable_class == 'string':
                 variable_value = '"' + eval_in_scope(name + ';') + '"'
                 variable_reference = 0
+                variable_presentation_hint = {'kind': 'data'}
             elif variable_class == 'function_handle':
                 variable_value = '@' + eval_in_scope('func2str(' + name + ');')
                 variable_reference = 0
+                variable_presentation_hint = {'kind': 'method'}
             else:
                 variable_value = variable_class
                 variable_reference = 0
+                variable_presentation_hint = {'kind': 'class'}
 
             variables.append(
                 {
                     'name': name,
                     'value': variable_value,
                     'type': variable_class,
+                    'presentationHit': variable_presentation_hint,
                     'variablesReference': variable_reference
                 }
             )
+    else:
+        return_vscode(message_type='info',
+                      command='get_variables',
+                      success=True,
+                      message='referenced variable request',
+                      data={'args': args,
+                            'var_dict': variables_dict})
 
     return_vscode(message_type='response',
                   command='get_variables',
@@ -384,14 +402,21 @@ def get_exception_info(args):
     m_stderr = StringIO()
 
     # MException.last can only be called from command prompt...
-    engine.evalin('base', 'aMiException = MException.last',
-                  nargout=0)
+    engine.eval('aMiException = MException.last;',
+                nargout=0)
 
     engine.aMiGetExceptionInfo(
         nargout=0,
         stdout=m_stdout,
         stderr=m_stderr)
     exception_info = m_stdout.getvalue()
+
+    engine.eval('MException.last(\'reset\');',
+                nargout=0)
+    engine.eval('lastwarn(\'\');',
+                nargout=0)
+    engine.eval('clear aMiException;',
+                nargout=0)
 
     if log_python_adaptor:
         input_event_log.write(exception_info + '\n')

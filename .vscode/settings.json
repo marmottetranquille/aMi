@@ -10,6 +10,7 @@
     "typescript.tsc.autoDetect": "off",
     "python.pythonPath": "/usr/bin/python3",
     "python.linting.pylintEnabled": false,
-    "python.linting.pep8Enabled": true,
-    "python.linting.enabled": true
+    "python.linting.pycodestyleEnabled": false,
+    "python.linting.enabled": true,
+    "python.linting.flake8Enabled": true
 }
