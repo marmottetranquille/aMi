@@ -283,10 +283,13 @@ def get_scopes(args):
                       message='',
                       data={'scopes': scopes,
                             'response': response})
-    except MatlabEngineError as error:
+    except MatlabEngineError:
         pass
 
 
+# variable dict
+# {ref: {"name": str,
+#        "type": ["'.'" | "'()'" | "'{}'"]}
 variables_dict = {
     1: {},
     2: {},
@@ -294,7 +297,30 @@ variables_dict = {
 }
 
 
-def get_variable(name, scope, eval_in_scope, variables):
+def get_variable(namein,
+                 scope,
+                 eval_in_scope,
+                 variables,
+                 substype=None,
+                 subs=None):
+
+    if substype:
+        name = "subsref(" + namein + ", struct('type'," + substype + ",'subs',"
+        if substype != '.':
+            subs_prefix = "{{"
+            subs_postfix = "}}"
+        else:
+            subs_prefix = ""
+            subs_postfix = ""
+        name = name + subs_prefix + subs + subs_postfix + "))"
+    else:
+        name = namein
+
+    return_vscode(message_type='info',
+                  command='get_variables',
+                  success=True,
+                  message='array variable request, get_variable',
+                  data={'name': name})
 
     variable_class = eval_in_scope('class(' + name + ');')
     variable_is_numeric = eval_in_scope('isnumeric(' + name + ');')
@@ -315,7 +341,7 @@ def get_variable(name, scope, eval_in_scope, variables):
                              ']'
             variable_reference = variables_dict[scope]['ref_count']
             variables_dict[scope][variable_reference] = {'name': name,
-                                                         'type': 'array'}
+                                                         'type': "'()'"}
             variable_reference += scope/10
             variables_dict[scope]['ref_count'] += 1
             variable_presentation_hint = {'kind': 'data'}
@@ -332,7 +358,7 @@ def get_variable(name, scope, eval_in_scope, variables):
         variable_reference = 0
         variable_presentation_hint = {'kind': 'class'}
 
-    variables.append({'name': name,
+    variables.append({'name': name if not substype else subs,
                       'value': variable_value,
                       'type': variable_class,
                       'presentationHit': variable_presentation_hint,
@@ -340,7 +366,7 @@ def get_variable(name, scope, eval_in_scope, variables):
 
 
 def get_variables(args):
-    from math import fmod
+    from math import fmod, floor
     global engine
     global variables_dict
 
@@ -389,7 +415,7 @@ def get_variables(args):
         var_details = variables_dict[scope][var_ref]
         name = var_details['name']
 
-        if var_details['type'] == 'array':
+        if var_details['type'] == "'()'":
             from io import StringIO
             global engine
             m_stdout = StringIO()
@@ -401,11 +427,25 @@ def get_variables(args):
                                    stderr=m_stderr)
             size_var = json.loads(m_stdout.getvalue())
             numel_var = eval_in_scope('numel(' + name + ');')
-            len_size_var = len(size_var)
-            for index in range(int(numel_var)):
-                get_variable(name + '({})'.format(index + 1),
-                             scope, eval_in_scope,
-                             variables)
+            # len_size_var = len(size_var)
+            if numel_var <= array_res:
+                for index in range(int(numel_var)):
+                    get_variable(name,
+                                 scope, eval_in_scope,
+                                 variables,
+                                 substype=var_details['type'],
+                                 subs=str(index+1))
+            else:
+                for index in range(int(floor(numel_var / array_res)) + 1):
+                    low_index = int(index * array_res + 1)
+                    top_index = int((index + 1) * array_res)
+                    if top_index > numel_var:
+                        top_index = int(numel_var)
+                    get_variable(name,
+                                 scope, eval_in_scope,
+                                 variables,
+                                 substype=var_details['type'],
+                                 subs="{}:{}".format(low_index, top_index))
 
             return_vscode(message_type='info',
                           command='get_variables',
