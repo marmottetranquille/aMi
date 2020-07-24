@@ -340,8 +340,12 @@ def get_variable(namein,
                              eval_in_scope('num2str(size(' + name + '));') + \
                              ']'
             variable_reference = variables_dict[scope]['ref_count']
-            variables_dict[scope][variable_reference] = {'name': name,
-                                                         'type': "'()'"}
+            if eval_in_scope('iscell(' + name + ');'):
+                variables_dict[scope][variable_reference] = {'name': name,
+                                                             'type': "'{}'"}
+            else:
+                variables_dict[scope][variable_reference] = {'name': name,
+                                                             'type': "'()'"}
             variable_reference += scope/10
             variables_dict[scope]['ref_count'] += 1
             variable_presentation_hint = {'kind': 'data'}
@@ -415,7 +419,7 @@ def get_variables(args):
         var_details = variables_dict[scope][var_ref]
         name = var_details['name']
 
-        if var_details['type'] == "'()'":
+        if var_details['type'] in ["'()'", "'{}'"]:
             from io import StringIO
             global engine
             m_stdout = StringIO()
