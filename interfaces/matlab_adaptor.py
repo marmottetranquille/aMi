@@ -336,8 +336,9 @@ def get_variable(namein,
 
     variable_class = eval_in_scope('class(' + name + ');')
     variable_is_numeric = eval_in_scope('isnumeric(' + name + ');')
+    variable_is_logical = eval_in_scope('islogical(' + name + ');')
     variable_is_array = eval_in_scope('numel(' + name + ') ~= 1;')
-    if variable_is_numeric and not variable_is_array:
+    if (variable_is_numeric or variable_is_logical) and not variable_is_array:
         variable_value = eval_in_scope('num2str(' + name + ');')
         variable_reference = 0
         variable_presentation_hint = {'kind': 'data'}
