@@ -7,16 +7,16 @@ function aMiGetSubs(variable, base_items)
     subs_front = '';
     subs_tail = '';
 
-    for index = 1:numel(size_name)
+    for index = numel(size_name):-1:1
         if size_name(index) == 1
-            subs_front = [subs_front '1,']; %#ok
+            subs_tail = [',1' subs_tail]; %#ok
         else
             break
         end
     end
 
-    for jndex = (index + 1):numel(size_name)
-        subs_tail = [subs_tail ''':'',']; %#ok
+    for jndex = (index - 1):-1:1
+        subs_front = [','':''' subs_front]; %#ok
     end
 
 
@@ -38,12 +38,12 @@ function aMiGetSubs(variable, base_items)
                 else
                     tail_index = num2str((jndex + 1)*array_res);
                 end
-                names{jndex+1} = [front_index ':' tail_index ',' subs_tail]; %#ok
+                names{jndex+1} = [front_index ',:' tail_index subs_tail]; %#ok
                 subs{jndex+1} = [subs_front names{jndex + 1}]; %#ok
             end
         else
             for jndex = 1:(size_name(index))
-                names{jndex} = [num2str(jndex) ',' subs_tail]; %#ok
+                names{jndex} = [',' num2str(jndex) subs_tail]; %#ok
                 subs{jndex} = [subs_front names{jndex}]; %#ok
             end
         end
@@ -52,8 +52,8 @@ function aMiGetSubs(variable, base_items)
     subs_out = '[';
     names_out = '[';
     for index = 1:numel(subs)
-        subs_out = [subs_out '"' subs{index}(1:end-1) '",']; %#ok
-        names_out = [names_out '"' names{index}(1:end-1) '",']; %#ok
+        subs_out = [subs_out '"' subs{index}(2:end) '" , ']; %#ok
+        names_out = [names_out '"' names{index}(2:end) '" , ']; %#ok
     end
 
-    disp(['{"subs": ' subs_out(1:end-1) '], "names": ' names_out(1:end-1) ']}']);
+    disp(['{"subs": ' subs_out(1:end-3) '], "names": ' names_out(1:end-3) ']}']);
