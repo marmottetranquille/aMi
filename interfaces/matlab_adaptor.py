@@ -3,7 +3,6 @@ from matlab.engine import EngineError as MatlabEngineError
 import json
 import sys
 import os
-from getpass import getuser
 import asyncio
 import select
 
@@ -42,11 +41,24 @@ def return_vscode(message_type=None,
                                    'data': data})
 
     if log_python_adaptor:
-            output_log.write(returned_message + '\n')
-            output_log.flush()
+        output_log.write(returned_message + '\n')
+        output_log.flush()
 
     sys.stdout.write(returned_message + '\n')
     sys.stdout.flush()
+
+
+def return_error(e):
+    import sys
+    exc_type, exc_obj, exc_tb = sys.exc_info()
+    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+
+    return_vscode(message_type='error',
+                  success=False,
+                  message='exception details',
+                  data={'error': str(e),
+                        'fname': fname,
+                        'line': exc_tb.tb_lineno})
 
 
 engine = None
@@ -56,6 +68,7 @@ input_event_log = None
 stop_on_warnings = False
 terminate_loops = False
 
+
 async def input_event_emitter():
     global command_input_log_file
     global engine
@@ -64,7 +77,6 @@ async def input_event_emitter():
     global stop_on_warnings
     global input_event_log
     global terminate_loops
-    import time
     from io import StringIO
 
     if log_python_adaptor:
@@ -370,100 +382,100 @@ def get_variable(namein,
 
 
 def get_variables(args):
-    from math import fmod, floor
+    from math import fmod
     global engine
     global variables_dict
 
-    request_args = args[u'request_args']
+    try:
+        request_args = args[u'request_args']
 
-    var_ref = request_args[u'variablesReference']
-    scope = round(fmod(var_ref, 1) * 10)
+        var_ref = request_args[u'variablesReference']
+        scope = round(fmod(var_ref, 1) * 10)
 
-    def eval_in_local(statement):
-        return engine.eval(statement)
+        def eval_in_local(statement, **kwargs):
+            return engine.eval(statement,
+                               **kwargs)
 
-    def eval_in_caller(statement):
-        return engine.evalin('caller', statement)
+        def eval_in_caller(statement, **kwargs):
+            return engine.evalin('caller', statement,
+                                 **kwargs)
 
-    def eval_in_base(statement):
-        return engine.evalin('base', statement)
+        def eval_in_base(statement, **kwargs):
+            return engine.evalin('base', statement,
+                                 **kwargs)
 
-    if scope == 1:
-        eval_in_scope = eval_in_local
-    elif scope == 2:
-        eval_in_scope = eval_in_caller
-    elif scope == 3:
-        eval_in_scope = eval_in_base
+        if scope == 1:
+            eval_in_scope = eval_in_local
+        elif scope == 2:
+            eval_in_scope = eval_in_caller
+        elif scope == 3:
+            eval_in_scope = eval_in_base
 
-    var_ref = round(var_ref - fmod(var_ref, 1))
+        var_ref = round(var_ref - fmod(var_ref, 1))
 
-    variables = []
+        variables = []
 
-    if var_ref == 0:
+        if var_ref == 0:
 
-        variable_names = eval_in_scope('who;')
+            variable_names = eval_in_scope('who;')
 
-        variables_dict[scope] = {'ref_count': 1}
+            variables_dict[scope] = {'ref_count': 1}
 
-        for name in variable_names:
-            get_variable(name, scope, eval_in_scope, variables)
+            for name in variable_names:
+                get_variable(name, scope, eval_in_scope, variables)
 
-    else:
-        return_vscode(message_type='info',
-                      command='get_variables',
-                      success=True,
-                      message='referenced variable request',
-                      data={'args': args,
-                            'var_dict': variables_dict})
-
-        var_details = variables_dict[scope][var_ref]
-        name = var_details['name']
-
-        if var_details['type'] in ["'()'", "'{}'"]:
-            from io import StringIO
-            global engine
-            m_stdout = StringIO()
-            m_stderr = StringIO()
-            array_res = 10
-            engine.aMiGetArraySize(name,
-                                   nargout=0,
-                                   stdout=m_stdout,
-                                   stderr=m_stderr)
-            size_var = json.loads(m_stdout.getvalue())
-            numel_var = eval_in_scope('numel(' + name + ');')
-            # len_size_var = len(size_var)
-            if numel_var <= array_res:
-                for index in range(int(numel_var)):
-                    get_variable(name,
-                                 scope, eval_in_scope,
-                                 variables,
-                                 substype=var_details['type'],
-                                 subs=str(index+1))
-            else:
-                for index in range(int(floor(numel_var / array_res)) + 1):
-                    low_index = int(index * array_res + 1)
-                    top_index = int((index + 1) * array_res)
-                    if top_index > numel_var:
-                        top_index = int(numel_var)
-                    get_variable(name,
-                                 scope, eval_in_scope,
-                                 variables,
-                                 substype=var_details['type'],
-                                 subs="{}:{}".format(low_index, top_index))
+        else:
+            var_details = variables_dict[scope][var_ref]
+            name = var_details['name']
 
             return_vscode(message_type='info',
                           command='get_variables',
                           success=True,
-                          message='array variable request',
-                          data={'name': name,
-                                'var_size': size_var})
+                          message='referenced variable request',
+                          data={'name': name, 'var_details': var_details})
 
-    return_vscode(message_type='response',
-                  command='get_variables',
-                  success=True,
-                  message='',
-                  data={'response': args[u'response'],
-                        'variables': variables})
+            if var_details['type'] in ["'()'", "'{}'"]:
+                from io import StringIO
+                global engine
+                m_stdout = StringIO()
+                m_stderr = StringIO()
+                array_base = 10
+                return_vscode(message_type='info',
+                              command='get_variables',
+                              success=True,
+                              message='array variable request',
+                              data={'exp': "aMiGetSubs({},{});"
+                                           .format(name, array_base)})
+                eval_in_scope("aMiGetSubs({},{});".format(name, array_base),
+                              nargout=0,
+                              stdout=m_stdout,
+                              stderr=m_stderr)
+                subsout = json.loads(m_stdout.getvalue())
+
+                return_vscode(message_type='info',
+                              command='get_variables',
+                              success=True,
+                              message='array variable request',
+                              data={'name': name,
+                                    'subsout': subsout})
+
+                for index in range(len(subsout['subs'])):
+                    get_variable(name,
+                                 scope,
+                                 eval_in_scope,
+                                 variables,
+                                 var_details['type'],
+                                 subsout['subs'][index])
+
+        return_vscode(message_type='response',
+                      command='get_variables',
+                      success=True,
+                      message='',
+                      data={'response': args[u'response'],
+                            'variables': variables})
+
+    except Exception as e:
+        return_error(e)
 
 
 def get_exception_info(args):
@@ -601,18 +613,24 @@ COMMANDS = {
 
 
 def process_line(line):
+    import sys
     global COMMANDS
     global input_log
     input_message = json.loads(line)
     try:
         COMMANDS[input_message[u'command']](input_message[u'args'])
     except Exception as e:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+
         return_vscode(message_type='error',
                       command=str(input_message[u'command']),
                       success=False,
                       message='Error during command execution',
                       data={'command_line': line,
-                            'error': str(e)})
+                            'error': str(e),
+                            'fname': fname,
+                            'line': exc_tb.tb_lineno})
 
 
 async def adaptor_listner():

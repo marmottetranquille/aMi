@@ -78,7 +78,7 @@ def send_exit(args):
         try:
             # for some reason it seems that this is the only way to exit Matlab
             eng.eval('exit', nargout=0)
-        except:
+        except Exception:
             # there is no way to stop it without spitting an error
             pass
 
@@ -133,7 +133,7 @@ def is_file_in_path(args):
 
 
 def file_attributes(file_path):
-    from os.path import realpath, split, splitext
+    from os.path import split, splitext
 
     file_dir, file_name = split(file_path)
     file_name, file_ext = splitext(file_name)
@@ -182,7 +182,7 @@ def process_line(line):
     args = command[u'args']
 
     if ENABLE_FILE_LOGS:
-        log(message)
+        log(line)
 
     callback(args)
 
