@@ -18,7 +18,7 @@ function formatedStackTrace = formatStackTrace(stack, option)
                                  ' "line": ', num2str(frame.line), ',', ...
                                  ' "column": 0}'];
             end
-            response = [response responseFrame ', '];
+            response = [response responseFrame ', ']; %#ok
         end
 
         commandWindowFrame = ['{"id": 0,', ...

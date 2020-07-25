@@ -4,14 +4,14 @@ function aMiGetArraySize(name)
 
     inhibit_comma = true;
 
-    for dim_size = evalin('caller', ['size(', name, ');']);
+    for dim_size = evalin('caller', ['size(', name, ');'])
         if inhibit_comma
             inhibit_comma = false;
         else
-            str_out = [str_out, ', '];
+            str_out = [str_out, ', ']; %#ok
         end
 
-        str_out = [str_out, num2str(dim_size)];
+        str_out = [str_out, num2str(dim_size)]; %#ok
     end
 
     str_out = [str_out, ']'];

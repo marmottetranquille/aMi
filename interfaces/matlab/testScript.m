@@ -11,7 +11,7 @@ x = 0;
 while toc <= timeOut
     x = x + 1;
     disp(x);
-    y = str2double('0.555');
+    y = str2double('0.555'); %#ok y is intentionaly not used
     pause(1);
     keyboard;
     try
