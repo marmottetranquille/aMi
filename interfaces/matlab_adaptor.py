@@ -316,70 +316,87 @@ def get_variable(namein,
                  substype=None,
                  subs=None):
 
-    if substype:
-        name = "subsref(" + namein + ", struct('type'," + substype + ",'subs',"
-        if substype != '.':
-            subs_prefix = "{{"
-            subs_postfix = "}}"
+    try:
+        if substype:
+            name = "subsref(" + namein + ", struct('type'," + substype + \
+                   ",'subs',"
+            if substype != '.':
+                subs_prefix = "{{"
+                subs_postfix = "}}"
+            else:
+                subs_prefix = ""
+                subs_postfix = ""
+            name = name + subs_prefix + subs + subs_postfix + "))"
         else:
-            subs_prefix = ""
-            subs_postfix = ""
-        name = name + subs_prefix + subs + subs_postfix + "))"
-    else:
-        name = namein
+            name = namein
 
-    return_vscode(message_type='info',
-                  command='get_variables',
-                  success=True,
-                  message='array variable request, get_variable',
-                  data={'name': name})
+        return_vscode(message_type='info',
+                      command='get_variables',
+                      success=True,
+                      message='array variable request, get_variable',
+                      data={'name': name})
 
-    variable_class = eval_in_scope('class(' + name + ');')
-    variable_is_numeric = eval_in_scope('isnumeric(' + name + ');')
-    variable_is_logical = eval_in_scope('islogical(' + name + ');')
-    variable_is_array = eval_in_scope('numel(' + name + ') ~= 1;')
-    if (variable_is_numeric or variable_is_logical) and not variable_is_array:
-        variable_value = eval_in_scope('num2str(' + name + ');')
-        variable_reference = 0
-        variable_presentation_hint = {'kind': 'data'}
-    elif variable_is_array:
-        if variable_class == 'char' and \
-           eval_in_scope('isrow(' + name + ');'):
-            variable_value = "'" + eval_in_scope(name) + "'"
-            variable_reference = 0
-            variable_presentation_hint = {'kind': 'data'}
-        else:
+        variable_class = eval_in_scope('class(' + name + ');')
+        variable_is_numeric = eval_in_scope('isnumeric(' + name + ');')
+        variable_is_logical = eval_in_scope('islogical(' + name + ');')
+        variable_is_printable = variable_is_numeric or variable_is_logical
+        variable_is_array = eval_in_scope('numel(' + name + ') > 1;')
+        variable_is_empty = eval_in_scope('isempty(' + name + ');')
+        if variable_is_empty:
             variable_value = variable_class + ' array of size [' + \
                              eval_in_scope('num2str(size(' + name + '));') + \
                              ']'
-            variable_reference = variables_dict[scope]['ref_count']
-            if eval_in_scope('iscell(' + name + ');'):
-                variables_dict[scope][variable_reference] = {'name': name,
-                                                             'type': "'{}'"}
+            variable_reference = 0
+            variable_presentation_hint = {'kind': 'data'}
+        elif (variable_is_printable) and not variable_is_array:
+            variable_value = eval_in_scope('num2str(' + name + ');')
+            variable_reference = 0
+            variable_presentation_hint = {'kind': 'data'}
+        elif variable_is_array:
+            if variable_class == 'char' and \
+               eval_in_scope('isrow(' + name + ');'):
+                variable_value = "'" + eval_in_scope(name) + "'"
+                variable_reference = 0
+                variable_presentation_hint = {'kind': 'data'}
             else:
+                variable_value = variable_class + ' array of size [' + \
+                                 eval_in_scope('num2str(size(' + name +
+                                               '));') + ']'
+                variable_reference = variables_dict[scope]['ref_count']
                 variables_dict[scope][variable_reference] = {'name': name,
                                                              'type': "'()'"}
+                variable_reference += scope/10
+                variables_dict[scope]['ref_count'] += 1
+                variable_presentation_hint = {'kind': 'data'}
+        elif variable_class == 'string':
+            variable_value = '"' + eval_in_scope(name + ';') + '"'
+            variable_reference = 0
+            variable_presentation_hint = {'kind': 'data'}
+        elif variable_class == 'function_handle':
+            variable_value = '@' + eval_in_scope('func2str(' + name + ');')
+            variable_reference = 0
+            variable_presentation_hint = {'kind': 'method'}
+        elif variable_class == 'cell':
+            variable_value = 'cell'
+            variable_reference = variables_dict[scope]['ref_count']
+            variables_dict[scope][variable_reference] = {'name': name,
+                                                         'type': "'{}'"}
             variable_reference += scope/10
             variables_dict[scope]['ref_count'] += 1
             variable_presentation_hint = {'kind': 'data'}
-    elif variable_class == 'string':
-        variable_value = '"' + eval_in_scope(name + ';') + '"'
-        variable_reference = 0
-        variable_presentation_hint = {'kind': 'data'}
-    elif variable_class == 'function_handle':
-        variable_value = '@' + eval_in_scope('func2str(' + name + ');')
-        variable_reference = 0
-        variable_presentation_hint = {'kind': 'method'}
-    else:
-        variable_value = variable_class
-        variable_reference = 0
-        variable_presentation_hint = {'kind': 'class'}
+        else:
+            variable_value = variable_class
+            variable_reference = 0
+            variable_presentation_hint = {'kind': 'class'}
 
-    variables.append({'name': name if not substype else subs,
-                      'value': variable_value,
-                      'type': variable_class,
-                      'presentationHit': variable_presentation_hint,
-                      'variablesReference': variable_reference})
+        variables.append({'name': name if not substype else subs,
+                          'value': variable_value,
+                          'type': variable_class,
+                          'presentationHit': variable_presentation_hint,
+                          'variablesReference': variable_reference})
+
+    except Exception as e:
+        return_error(e)
 
 
 def get_variables(args):

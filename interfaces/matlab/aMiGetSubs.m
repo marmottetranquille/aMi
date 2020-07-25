@@ -19,7 +19,6 @@ function aMiGetSubs(variable, base_items)
         subs_front = [','':''' subs_front]; %#ok
     end
 
-
     if size_name(index) > 1
         array_res = base_items^floor(log(size_name(index))/log(double(base_items)));
         if array_res == size_name(index) && array_res > 1
@@ -47,6 +46,9 @@ function aMiGetSubs(variable, base_items)
                 subs{jndex} = [subs_front names{jndex}]; %#ok
             end
         end
+    else
+        names{1} = subs_tail;
+        subs{1} = [subs_front names{1}];
     end
 
     subs_out = '[';
