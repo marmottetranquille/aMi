@@ -3,7 +3,6 @@ from matlab.engine import EngineError as MatlabEngineError
 import json
 import sys
 import os
-from getpass import getuser
 import asyncio
 import select
 
@@ -42,11 +41,24 @@ def return_vscode(message_type=None,
                                    'data': data})
 
     if log_python_adaptor:
-            output_log.write(returned_message + '\n')
-            output_log.flush()
+        output_log.write(returned_message + '\n')
+        output_log.flush()
 
     sys.stdout.write(returned_message + '\n')
     sys.stdout.flush()
+
+
+def return_error(e):
+    import sys
+    exc_type, exc_obj, exc_tb = sys.exc_info()
+    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+
+    return_vscode(message_type='error',
+                  success=False,
+                  message='exception details',
+                  data={'error': str(e),
+                        'fname': fname,
+                        'line': exc_tb.tb_lineno})
 
 
 engine = None
@@ -56,6 +68,7 @@ input_event_log = None
 stop_on_warnings = False
 terminate_loops = False
 
+
 async def input_event_emitter():
     global command_input_log_file
     global engine
@@ -64,7 +77,6 @@ async def input_event_emitter():
     global stop_on_warnings
     global input_event_log
     global terminate_loops
-    import time
     from io import StringIO
 
     if log_python_adaptor:
@@ -283,10 +295,13 @@ def get_scopes(args):
                       message='',
                       data={'scopes': scopes,
                             'response': response})
-    except MatlabEngineError as error:
+    except MatlabEngineError:
         pass
 
 
+# variable dict
+# {ref: {"name": str,
+#        "type": ["'.'" | "'()'" | "'{}'"]}
 variables_dict = {
     1: {},
     2: {},
@@ -294,85 +309,195 @@ variables_dict = {
 }
 
 
+def get_variable(namein,
+                 scope,
+                 eval_in_scope,
+                 variables,
+                 substype=None,
+                 subs=None):
+
+    try:
+        if substype:
+            name = "subsref(" + namein + ", struct('type'," + substype + \
+                   ",'subs',"
+            if substype != '.':
+                subs_prefix = "{{"
+                subs_postfix = "}}"
+            else:
+                subs_prefix = ""
+                subs_postfix = ""
+            name = name + subs_prefix + subs + subs_postfix + "))"
+        else:
+            name = namein
+
+        return_vscode(message_type='info',
+                      command='get_variables',
+                      success=True,
+                      message='array variable request, get_variable',
+                      data={'name': name,
+                            'namin': namein})
+
+        variable_class = eval_in_scope('class(' + name + ');')
+        variable_is_numeric = eval_in_scope('isnumeric(' + name + ');')
+        variable_is_logical = eval_in_scope('islogical(' + name + ');')
+        variable_is_char = eval_in_scope('ischar(' + name + ');')
+        variable_is_printable = variable_is_numeric \
+            or variable_is_logical \
+            or variable_is_char
+        variable_is_array = eval_in_scope('numel(' + name + ') > 1;')
+        variable_is_empty = eval_in_scope('isempty(' + name + ');')
+        if variable_is_empty:
+            variable_value = variable_class + ' array of size [' + \
+                             eval_in_scope('num2str(size(' + name + '));') + \
+                             ']'
+            variable_reference = 0
+            variable_presentation_hint = {'kind': 'data'}
+        elif (variable_is_printable) and not variable_is_array:
+            variable_value = eval_in_scope('num2str(' + name + ');')
+            variable_reference = 0
+            variable_presentation_hint = {'kind': 'data'}
+        elif variable_is_array:
+            if variable_class == 'char' and \
+               eval_in_scope('isrow(' + name + ');'):
+                variable_value = "'" + eval_in_scope(name) + "'"
+                variable_reference = 0
+                variable_presentation_hint = {'kind': 'data'}
+            else:
+                variable_value = variable_class + ' array of size [' + \
+                                 eval_in_scope('num2str(size(' + name +
+                                               '));') + ']'
+                variable_reference = variables_dict[scope]['ref_count']
+                variables_dict[scope][variable_reference] = {'name': name,
+                                                             'type': "'()'"}
+                variable_reference += scope/10
+                variables_dict[scope]['ref_count'] += 1
+                variable_presentation_hint = {'kind': 'data'}
+        elif variable_class == 'string':
+            variable_value = '"' + eval_in_scope(name + ';') + '"'
+            variable_reference = 0
+            variable_presentation_hint = {'kind': 'data'}
+        elif variable_class == 'function_handle':
+            variable_value = '@' + eval_in_scope('func2str(' + name + ');')
+            variable_reference = 0
+            variable_presentation_hint = {'kind': 'method'}
+        elif variable_class == 'cell':
+            variable_value = 'cell'
+            variable_reference = variables_dict[scope]['ref_count']
+            variables_dict[scope][variable_reference] = {'name': name,
+                                                         'type': "'{}'"}
+            variable_reference += scope/10
+            variables_dict[scope]['ref_count'] += 1
+            variable_presentation_hint = {'kind': 'data'}
+        else:
+            variable_value = variable_class
+            variable_reference = 0
+            variable_presentation_hint = {'kind': 'class'}
+
+        variables.append({'name': name if not substype else subs,
+                          'value': variable_value,
+                          'type': variable_class,
+                          'presentationHit': variable_presentation_hint,
+                          'variablesReference': variable_reference})
+
+    except Exception as e:
+        return_error(e)
+
+
 def get_variables(args):
-    from math import floor, fmod
+    from math import fmod
     global engine
     global variables_dict
 
-    request_args = args[u'request_args']
+    try:
+        request_args = args[u'request_args']
 
-    var_ref = request_args[u'variablesReference']
-    scope = round(fmod(var_ref, 1) * 10)
+        var_ref = request_args[u'variablesReference']
+        scope = round(fmod(var_ref, 1) * 10)
 
-    def eval_in_local(statement):
-        return engine.eval(statement)
+        def eval_in_local(statement, **kwargs):
+            return engine.eval(statement,
+                               **kwargs)
 
-    def eval_in_caller(statement):
-        return engine.evalin('caller', statement)
+        def eval_in_caller(statement, **kwargs):
+            return engine.evalin('caller', statement,
+                                 **kwargs)
 
-    def eval_in_base(statement):
-        return engine.evalin('base', statement)
+        def eval_in_base(statement, **kwargs):
+            return engine.evalin('base', statement,
+                                 **kwargs)
 
-    if scope == 1:
-        eval_in_scope = eval_in_local
-    elif scope == 2:
-        eval_in_scope = eval_in_caller
-    elif scope == 3:
-        eval_in_scope = eval_in_base
+        if scope == 1:
+            eval_in_scope = eval_in_local
+        elif scope == 2:
+            eval_in_scope = eval_in_caller
+        elif scope == 3:
+            eval_in_scope = eval_in_base
 
-    var_ref = round(var_ref - fmod(var_ref, 1))
+        var_ref = round(var_ref - fmod(var_ref, 1))
 
-    variables = []
+        variables = []
 
-    if var_ref == 0:
+        if var_ref == 0:
 
-        variable_names = eval_in_scope('who;')
+            variable_names = eval_in_scope('who;')
 
-        variables_dict[scope] = {}
+            variables_dict[scope] = {'ref_count': 1}
 
-        for name in variable_names:
-            variable_class = eval_in_scope('class(' + name + ');')
-            variable_is_numeric = eval_in_scope('isnumeric(' + name + ');')
-            variable_is_array = eval_in_scope('numel(' + name + ') ~= 1;')
-            if variable_is_numeric and not variable_is_array:
-                variable_value = eval_in_scope('num2str(' + name + ');')
-                variable_reference = 0
-            elif variable_is_array:
-                if variable_class == 'char' and \
-                   eval_in_scope('isrow(' + name + ');'):
-                        variable_value = "'" + eval_in_scope(name) + "'"
-                        variable_reference = 0
-                else:
-                    variable_value = variable_class + ' array of size [' + \
-                                     eval_in_scope('num2str(size(' +
-                                                   name + '));') + \
-                                     ']'
-                    variable_reference = 0
-            elif variable_class == 'string':
-                variable_value = '"' + eval_in_scope(name + ';') + '"'
-                variable_reference = 0
-            elif variable_class == 'function_handle':
-                variable_value = '@' + eval_in_scope('func2str(' + name + ');')
-                variable_reference = 0
-            else:
-                variable_value = variable_class
-                variable_reference = 0
+            for name in variable_names:
+                get_variable(name, scope, eval_in_scope, variables)
 
-            variables.append(
-                {
-                    'name': name,
-                    'value': variable_value,
-                    'type': variable_class,
-                    'variablesReference': variable_reference
-                }
-            )
+        else:
+            var_details = variables_dict[scope][var_ref]
+            name = var_details['name']
 
-    return_vscode(message_type='response',
-                  command='get_variables',
-                  success=True,
-                  message='',
-                  data={'response': args[u'response'],
-                        'variables': variables})
+            return_vscode(message_type='info',
+                          command='get_variables',
+                          success=True,
+                          message='referenced variable request',
+                          data={'name': name, 'var_details': var_details})
+
+            if var_details['type'] in ["'()'", "'{}'"]:
+                from io import StringIO
+                global engine
+                m_stdout = StringIO()
+                m_stderr = StringIO()
+                array_base = 10
+                return_vscode(message_type='info',
+                              command='get_variables',
+                              success=True,
+                              message='array variable request',
+                              data={'exp': "aMiGetSubs({},{});"
+                                           .format(name, array_base)})
+                eval_in_scope("aMiGetSubs({},{});".format(name, array_base),
+                              nargout=0,
+                              stdout=m_stdout,
+                              stderr=m_stderr)
+                subsout = json.loads(m_stdout.getvalue())
+
+                return_vscode(message_type='info',
+                              command='get_variables',
+                              success=True,
+                              message='array variable request',
+                              data={'name': name,
+                                    'subsout': subsout})
+
+                for index in range(len(subsout['subs'])):
+                    get_variable(name,
+                                 scope,
+                                 eval_in_scope,
+                                 variables,
+                                 var_details['type'],
+                                 subsout['subs'][index])
+
+        return_vscode(message_type='response',
+                      command='get_variables',
+                      success=True,
+                      message='',
+                      data={'response': args[u'response'],
+                            'variables': variables})
+
+    except Exception as e:
+        return_error(e)
 
 
 def get_exception_info(args):
@@ -384,14 +509,21 @@ def get_exception_info(args):
     m_stderr = StringIO()
 
     # MException.last can only be called from command prompt...
-    engine.evalin('base', 'aMiException = MException.last',
-                  nargout=0)
+    engine.eval('aMiException = MException.last;',
+                nargout=0)
 
     engine.aMiGetExceptionInfo(
         nargout=0,
         stdout=m_stdout,
         stderr=m_stderr)
     exception_info = m_stdout.getvalue()
+
+    engine.eval('MException.last(\'reset\');',
+                nargout=0)
+    engine.eval('lastwarn(\'\');',
+                nargout=0)
+    engine.eval('clear aMiException;',
+                nargout=0)
 
     if log_python_adaptor:
         input_event_log.write(exception_info + '\n')
@@ -503,18 +635,24 @@ COMMANDS = {
 
 
 def process_line(line):
+    import sys
     global COMMANDS
     global input_log
     input_message = json.loads(line)
     try:
         COMMANDS[input_message[u'command']](input_message[u'args'])
     except Exception as e:
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+
         return_vscode(message_type='error',
                       command=str(input_message[u'command']),
                       success=False,
                       message='Error during command execution',
                       data={'command_line': line,
-                            'error': str(e)})
+                            'error': str(e),
+                            'fname': fname,
+                            'line': exc_tb.tb_lineno})
 
 
 async def adaptor_listner():
@@ -533,7 +671,8 @@ async def adaptor_listner():
                     command='none',
                     success=False,
                     message='Unexpected error during command processing',
-                    data={'command_line': line})
+                    data={'command_line': line,
+                          'error': str(e)})
         else:
             await asyncio.sleep(0.01)
 

@@ -6,6 +6,19 @@ All notable changes to the "aMi" extension will be documented in this file.
 
 - See [README](README.md)
 
+## [0.5.1] 2020-07-xx
+
+### Added
+
+- Arrays and cell arrays drill down.
+
+### Fixed
+
+- Disabled exception and warning specific protocol. They are now treated as a
+  normal breakpoint so that subsequent breakpoints do not erroneously show an
+  exception status.
+- Issue #51 no more splash at Matlab startup.
+
 ## [0.5.0] 2019-09-04
 
 ### Added

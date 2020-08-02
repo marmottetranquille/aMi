@@ -1,4 +1,4 @@
-function aMiStopEventDiscriminator(stopOnWarnings)
+function aMiStopEventDiscriminator(stopOnWarnings) %#ok stopOnWarning unused
 
 stackFrames = dbstack(1);
 
@@ -12,17 +12,23 @@ frameLine = stackFrames(1).line;
 
 breakpoints = dbstatus;
 
-lastError = lasterror;
-if stopOnWarnings
-    lastWarning = lastwarn;
-else
-    lastWarning = '';
-end
+% lastError = lasterror;
+% lastError = evalin('caller', 'aMiException;');
+% evalin('caller', 'clear aMiException;');
+% if stopOnWarnings
+%     lastWarning = lastwarn;
+%     lastwarn('');
+% else
+%     lastWarning = '';
+% end
 
-sendErrorReason = ~isempty(lastError.message) | ~isempty(lastWarning);
+% For some weird reason, error info (lastwarn and MException.last) do not seem
+% to be resetable from the Python adaptor, so we just never flag any exception
+% sendErrorReason = ~isempty(lastError.message) | ~isempty(lastWarning);
+sendErrorReason = false;
 
 if sendErrorReason
-    if ~isempty(lastError.message)
+    if ~isempty(lastError.message) %#ok statement can not be reached
         errorReason = lastError.message;
     else
         errorReason = lastWarning;

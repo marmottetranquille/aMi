@@ -1,6 +1,6 @@
 function aMiGetExceptionInfo()
 
-aMiException = evalin('base', 'aMiException;');
+aMiException = evalin('caller', 'aMiException;');
 
 message = ['{"identifier": "', aMiException.identifier, '", ', ...
             '"message": "', replace10(aMiException.message), '", ' ...

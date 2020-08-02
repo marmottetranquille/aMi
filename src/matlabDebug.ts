@@ -227,7 +227,7 @@ export class MatlabDebugSession extends DebugAdapter.LoggingDebugSession {
         response.body = response.body || {};
         response.body.scopes = new Array<DebugAdapter.Scope>();
 
-        this._runtime.getScopes(response);
+        this._runtime.getScopes(args, response);
     }
 
     protected async variablesRequest(

@@ -10,7 +10,7 @@ the Feature section bellow.
 
 This extension is intended for Linux users (so most should work on MacOS).
 
-**Current version 0.5.0**.
+**Current version 0.5.1**.
 
 ## What this extension is not about
 
@@ -20,8 +20,8 @@ There is no intent to provide integration for toolboxes, application packaging
 or Simulink. These Matlab extensions are available through the Matlab
 command window.
 
-There is no intent to provide compatibility to Windows... not that I want to
-preclude from using Windows, but I just don't own one...
+There is no immediate intent to provide compatibility to Windows... not that I
+want to preclude from using Windows, but I just don't own one...
 
 ## Usage
 
@@ -82,15 +82,16 @@ Debug mode catches error and warning and pauses execution to allow debugging.
 
 #### Workspace explorer (Version 0.5)
 
-Explore the current workspace variables.
+Explore the current workspace variables. Go up and down the execution stack
+when debugging.
 
-#### Workspace editor (Version 0.6)
+#### OS agnostic terminal (Version 0.6)
+
+Works "out of the box" with Windows, MacOS and Linux. Matlab editor by-passed.
+
+#### Workspace editor (Version 0.7)
 
 Edit values from the workspace explorer.
-
-#### Execution Stack explorer (Version 0.7)
-
-Go up and down the execution stack when debugging.
 
 #### Profile explorer (Version 0.8)
 
@@ -98,11 +99,7 @@ Drill down profiler results.
 
 ### Advanced editing (Version 1)
 
-#### Edit command opens file in VSCode (Version 1.0)
-
-Matlab editor is by-passed so you can work only in VSCode like environment.
-
-#### Command window auto completion (Version 1.1)
+#### Command window auto completion (Version 1.0)
 
 Auto completion hints straight from the command window.
 
@@ -125,21 +122,38 @@ command starts it. This extension is built and tested using Matlab R2019a.
 Backward compatibility is not granted though it should work smoothly as of
 R2014b.
 
-Matlab Engine API for Python must be installed (follow these
+Matlab Engine API for Python (min 3.6) must be installed (follow these
 [instructions](https://www.mathworks.com/help/matlab/matlab_external/install-the-matlab-engine-for-python.html)).
 
 ## Extension Settings
 
 None for now.
 
+## Release Notes Version 0.5.1
+
+* When debug adaptor is started, variables of the selected stack workspace are
+now displayed in the variables tab of the debug pane.
+* For release 0.5.1 arrays and cell arrays exploration support has been added.
+Structure and object support will be added in next release.
+
 ## Known Issues
+
+### Major
+
+* Some error messages in the command window are printed incorrectly.
+* Debugging files not in path (run file in place) does not work. Workaround is
+to add them to the path.
+* Exception and warning catching can only be treated as an otherwise standard
+breakpoint. Error informations are only availble from the command window. There
+will probably not be any fix for this as this is linked to what information
+Matlab can programatically provide on the current debug state.
+
+### Annoying
 
 * Conda environments can preclude this extension to work properly. It will not
 work for instance if you have installed a recent Anaconda (using now Python3.7)
 and let the installer initialize your .bashrc file. To work this around, create
 an environment compatible with this extension and start VSCode from that one.
-* Shared session of Matlab can not be stopped cleanly from the Python API. The
-  error raised at exit is simply ignored.
 * Command history is lost when VSCode is closed before using `aMi: Stop Matlab`
 or terminating Matlab manualy from its command window (using `exit`).
 * The debug stop button (red square) is misleading as it forces the debug
@@ -148,24 +162,17 @@ window, use debug restart button instead (green rotating arrow). If you stop
 the debug adaptor by mistake, just restarting it should restore previous state.
 Note: there will be no fix to this as this is the behaviour enforced by the
 debug protocol.
+* First undefined variable or function error in the command window catches
+Matlab internal errors if `Caught Errors` option is set.
+* Altering the class of the content of a cell (in a cell array) can break
+VSCode variable explorer if that cell is displayed when the change is done.
+Workaround is to stop and restart the debug adaptor.
+
+### Minor
+
 * Breakpoints remain set after the debug addaptor has been shut down (not sure
 yet if this is an issue or desirable feature - feedback welcome). To clear all
 breakpoints: re start debug adaptor and remove all breakpoints, or
 alternatively enter `dbclear all` in the Matlab command window.
-* Some error messages in the command window are printed incorrectly.
-* Debugging files not in path (run file in place) does not work.
-* First undefined variable or function error in the command window catches
-Matlab internal errors if `Caught Errors` option is set.
-* Showing error information in the source file display does not work (yet).
-Error/warning info is therefore only available in the terminal command window.
-* After an exception has been caught, the call stack will read stopped on
-exception until user enters `MException.last('reset')` in the terminal command
-window.
-
-## Release Notes Version 0.5.0
-
-* When debug adaptor is started, variables of the selected stack workspace are
-now displayed in the variables tab of the debug pane.
-* For release 0.5.0 the only types displaying value details are numerical and
-string scalars and char rows. Remaining types will be added in upcoming
-upgrades of version 0.5.
+* Shared session of Matlab can not be stopped cleanly from the Python API. The
+error raised at exit is simply ignored.
