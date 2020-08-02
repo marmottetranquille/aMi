@@ -334,12 +334,16 @@ def get_variable(namein,
                       command='get_variables',
                       success=True,
                       message='array variable request, get_variable',
-                      data={'name': name})
+                      data={'name': name,
+                            'namin': namein})
 
         variable_class = eval_in_scope('class(' + name + ');')
         variable_is_numeric = eval_in_scope('isnumeric(' + name + ');')
         variable_is_logical = eval_in_scope('islogical(' + name + ');')
-        variable_is_printable = variable_is_numeric or variable_is_logical
+        variable_is_char = eval_in_scope('ischar(' + name + ');')
+        variable_is_printable = variable_is_numeric \
+            or variable_is_logical \
+            or variable_is_char
         variable_is_array = eval_in_scope('numel(' + name + ') > 1;')
         variable_is_empty = eval_in_scope('isempty(' + name + ');')
         if variable_is_empty:

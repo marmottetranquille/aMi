@@ -2,9 +2,9 @@
 	"name": "ami",
 	"publisher": "marmottet",
 	"displayName": "aMi",
-	"description": "alternative Matlab ide",
+	"description": "alternative Matlab ide: Run and debug Matlab from VSCode",
 	"icon": "images/aMi128.png",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/marmottetranquille/aMi.git"

@@ -369,7 +369,7 @@ export function activate(context: vscode.ExtensionContext) {
 		// Start Matlab in shared mode
 		matlab_terminal.sendText('mkdir -p ' + log_dir);
 		matlab_terminal.sendText('chmod og-rwx ' + log_dir);
-		let matlab_command = 'matlab -nodesktop ';
+		let matlab_command = 'matlab -nodesktop -nosplash';
 		matlab_command = matlab_command + ' -r \"matlab.engine.shareEngine(\'';
 		matlab_command = matlab_command + session_tag + '\')\"';
 		matlab_command = matlab_command + ' | tee -i ' + log_file;
