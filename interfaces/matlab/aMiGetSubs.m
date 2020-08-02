@@ -37,7 +37,7 @@ function aMiGetSubs(variable, base_items)
                 else
                     tail_index = num2str((jndex + 1)*array_res);
                 end
-                names{jndex+1} = [front_index ',:' tail_index subs_tail]; %#ok
+                names{jndex+1} = [',' front_index ':' tail_index subs_tail]; %#ok
                 subs{jndex+1} = [subs_front names{jndex + 1}]; %#ok
             end
         else
