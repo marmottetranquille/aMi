@@ -20,7 +20,8 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onCommand:aMi.startMatlab"
+		"onCommand:aMi.startMatlab",
+		"onCommand:aMi.startDebugAdaptor",
 	],
 	"main": "./out/extension.js",
 	"contributes": {
